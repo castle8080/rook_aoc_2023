@@ -8,6 +8,15 @@ pub trait LineNumberExtractor {
     fn get_number(&self, line: &String) -> Option<i32>;
 }
 
+fn combine_digits(first_digit: Option<i32>, last_digit: Option<i32>) -> Option<i32> {
+    match (first_digit, last_digit) {
+        (Some(fd), Some(ld)) => {
+            Some(fd * 10 + ld)
+        },
+        _ => None
+    }
+}
+
 pub struct BasicExtractor {}
 
 impl LineNumberExtractor for BasicExtractor {
@@ -25,12 +34,7 @@ impl LineNumberExtractor for BasicExtractor {
             }
         }
     
-        match (first_digit, last_digit) {
-            (Some(fd), Some(ld)) => {
-                Some(fd * 10 + ld)
-            },
-            _ => None
-        }
+        combine_digits(first_digit, last_digit)
     }
 }
 
@@ -109,12 +113,7 @@ impl LineNumberExtractor for NumMatchers {
             }
         }
 
-        match (first_digit, last_digit) {
-            (Some(fd), Some(ld)) => {
-                Some(fd * 10 + ld)
-            },
-            _ => None
-        }
+        combine_digits(first_digit, last_digit)
     }
 }
 
