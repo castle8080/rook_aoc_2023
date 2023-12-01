@@ -4,25 +4,33 @@ use std::io::BufReader;
 use std::io::prelude::*;
 use std::path::Path;
 
-fn get_line_num_value(line: &String) -> Option<i32> {
-    let mut first_digit: Option<i32> = None;
-    let mut last_digit: Option<i32> = None;
+pub trait LineNumberExtractor {
+    fn get_number(&self, line: &String) -> Option<i32>;
+}
 
-    for c in line.chars() {
-        if c >= '0' && c <= '9' {
-            let n = c as i32 - '0' as i32;
-            if let None = first_digit {
-                first_digit = Some(n);
+pub struct BasicExtractor {}
+
+impl LineNumberExtractor for BasicExtractor {
+    fn get_number(&self, line: &String) -> Option<i32> {
+        let mut first_digit: Option<i32> = None;
+        let mut last_digit: Option<i32> = None;
+    
+        for c in line.chars() {
+            if c >= '0' && c <= '9' {
+                let n = c as i32 - '0' as i32;
+                if let None = first_digit {
+                    first_digit = Some(n);
+                }
+                last_digit = Some(n);
             }
-            last_digit = Some(n);
         }
-    }
-
-    match (first_digit, last_digit) {
-        (Some(fd), Some(ld)) => {
-            Some(fd * 10 + ld)
-        },
-        _ => None
+    
+        match (first_digit, last_digit) {
+            (Some(fd), Some(ld)) => {
+                Some(fd * 10 + ld)
+            },
+            _ => None
+        }
     }
 }
 
@@ -78,8 +86,11 @@ impl NumMatchers {
 
         return None;
     }
+}
 
-    pub fn get_line_num(&self, line: &String) -> Option<i32> {
+impl LineNumberExtractor for NumMatchers {
+
+    fn get_number(&self, line: &String) -> Option<i32> {
         let mut first_digit: Option<i32> = None;
         let mut last_digit: Option<i32> = None;
 
@@ -107,13 +118,13 @@ impl NumMatchers {
     }
 }
 
-pub fn part1(input: impl AsRef<Path>) -> Result<String, Box<dyn Error>> {
+pub fn run_part(input: impl AsRef<Path>, extractor: impl LineNumberExtractor) -> Result<String, Box<dyn Error>> {
     let mut reader = BufReader::new(File::open(input)?);
     let mut buffer = String::new();
     let mut result = 0;
 
     while reader.read_line(&mut buffer)? > 0 {
-        match get_line_num_value(&buffer) {
+        match extractor.get_number(&buffer) {
             Some(v) => {
                 result += v;
             }
@@ -125,22 +136,10 @@ pub fn part1(input: impl AsRef<Path>) -> Result<String, Box<dyn Error>> {
     Ok(format!("{result}"))
 }
 
+pub fn part1(input: impl AsRef<Path>) -> Result<String, Box<dyn Error>> {
+    run_part(input, BasicExtractor{})
+}
+
 pub fn part2(input: impl AsRef<Path>) -> Result<String, Box<dyn Error>> {
-    let mut reader = BufReader::new(File::open(input)?);
-    let mut buffer = String::new();
-    let mut result = 0;
-
-    let num_matchers = NumMatchers::default();
-
-    while reader.read_line(&mut buffer)? > 0 {
-        match num_matchers.get_line_num(&buffer) {
-            Some(v) => {
-                result += v;
-            }
-            None => {}
-        }
-        buffer.clear();
-    }
-
-    Ok(format!("{result}"))
+    run_part(input, NumMatchers::default())
 }
