@@ -1,8 +1,9 @@
-use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
 use std::path::Path;
+
+use super::error::AOCResult;
 
 pub trait LineNumberExtractor {
     fn get_number(&self, line: &String) -> Option<i32>;
@@ -117,7 +118,7 @@ impl LineNumberExtractor for NumMatchers {
     }
 }
 
-pub fn run_part(input: impl AsRef<Path>, extractor: impl LineNumberExtractor) -> Result<String, Box<dyn Error>> {
+pub fn run_part(input: impl AsRef<Path>, extractor: impl LineNumberExtractor) -> AOCResult<String> {
     let mut reader = BufReader::new(File::open(input)?);
     let mut buffer = String::new();
     let mut result = 0;
@@ -135,10 +136,10 @@ pub fn run_part(input: impl AsRef<Path>, extractor: impl LineNumberExtractor) ->
     Ok(format!("{result}"))
 }
 
-pub fn part1(input: impl AsRef<Path>) -> Result<String, Box<dyn Error>> {
-    run_part(input, BasicExtractor{})
+pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
+    run_part(input, BasicExtractor {})
 }
 
-pub fn part2(input: impl AsRef<Path>) -> Result<String, Box<dyn Error>> {
+pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
     run_part(input, NumMatchers::default())
 }
