@@ -14,20 +14,6 @@ fn parse_i32(input: &[u8]) -> AOCResult<i32> {
     Ok(n)
 }
 
-fn is_symbol(b: u8) -> bool {
-    !(b >= b'0' && b <= b'9') && b != b'.'
-}
-
-fn is_gear(b: u8) -> bool {
-    b == b'*'
-}
-
-fn is_adjacent<F>(data: &Vec<Vec<u8>>, row: usize, start: usize, end: usize, f: F) -> bool
-    where F: Fn(u8) -> bool
-{
-    find_adjacent(data, row, start, end, f).len() > 0
-}
-
 fn find_adjacent<F>(data: &Vec<Vec<u8>>, row: usize, start: usize, end: usize, f: F) -> Vec<(usize, usize)>
     where F: Fn(u8) -> bool
 {
@@ -50,6 +36,20 @@ fn find_adjacent<F>(data: &Vec<Vec<u8>>, row: usize, start: usize, end: usize, f
         }
     }
     adjacent_locations
+}
+
+fn is_adjacent<F>(data: &Vec<Vec<u8>>, row: usize, start: usize, end: usize, f: F) -> bool
+    where F: Fn(u8) -> bool
+{
+    find_adjacent(data, row, start, end, f).len() > 0
+}
+
+fn is_symbol(b: u8) -> bool {
+    !(b >= b'0' && b <= b'9') && b != b'.'
+}
+
+fn is_gear(b: u8) -> bool {
+    b == b'*'
 }
 
 fn is_symbol_adjacent(data: &Vec<Vec<u8>>, row: usize, start: usize, end: usize) -> bool {
@@ -104,16 +104,21 @@ fn read_gear_map(input: impl AsRef<Path>) -> AOCResult<HashMap<(usize, usize), V
     Ok(gear_map)
 }
 
-pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
-    let gear_map = read_gear_map(input)?;
+fn calculate_gear_ratio_sums(gear_map: &HashMap<(usize, usize), Vec<i32>>) -> i32 {
     let mut result = 0;
 
-    for (_gear_loc, adjacent_nums) in &gear_map {
+    for (_gear_loc, adjacent_nums) in gear_map {
         if adjacent_nums.len() == 2 {
             result += adjacent_nums[0] * adjacent_nums[1];
         }
     }
 
+    result
+}
+
+pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
+    let gear_map = read_gear_map(input)?;
+    let result = calculate_gear_ratio_sums(&gear_map);
 
     Ok(result.to_string())
 }
