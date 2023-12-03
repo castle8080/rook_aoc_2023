@@ -5,6 +5,7 @@ mod aocio;
 use problems:: {
     problem1,
     problem2,
+    problem3,
 };
 
 use std::time::Instant;
@@ -42,4 +43,6 @@ fn main() {
     run_problem!(problem1, part2, "input/input_01.txt");
     run_problem!(problem2, part1, "input/input_02.txt");
     run_problem!(problem2, part2, "input/input_02.txt");
+    run_problem!(problem3, part1, "input/input_03.txt");
+    run_problem!(problem3, part2, "input/input_03.txt");
 }

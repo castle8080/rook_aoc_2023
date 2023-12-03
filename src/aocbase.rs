@@ -3,6 +3,9 @@ use thiserror::Error;
 
 use std::num::ParseIntError;
 use std::io;
+use std::string::FromUtf8Error;
+
+use regex;
 
 #[derive(Debug, Error)]
 pub enum AOCError {
@@ -12,8 +15,8 @@ pub enum AOCError {
     #[error("IO error: {0}")]
     IOError(String),
 
-    #[error("Invalid regex operation.")]
-    InvalidRegexOperation(),
+    #[error("Invalid regex use: {0}")]
+    InvalidRegexOperation(String),
 }
 
 pub type AOCResult<T> = Result<T, AOCError>;
@@ -27,5 +30,17 @@ impl From<ParseIntError> for AOCError {
 impl From<io::Error> for AOCError {
     fn from(value: io::Error) -> Self {
         Self::IOError(format!("{value}"))
+    }
+}
+
+impl From<regex::Error> for AOCError {
+    fn from(value: regex::Error) -> Self {
+        Self::InvalidRegexOperation(value.to_string())
+    }
+}
+
+impl From<FromUtf8Error> for AOCError {
+    fn from(value: FromUtf8Error) -> Self {
+        Self::ParseError(value.to_string())
     }
 }

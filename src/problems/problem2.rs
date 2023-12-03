@@ -39,13 +39,13 @@ impl CubeCounts {
 
             let c_count = c_count_cap
                 .get(1)
-                .ok_or_else(|| AOCError::InvalidRegexOperation())?
+                .ok_or_else(|| AOCError::InvalidRegexOperation("incorrect capture".into()))?
                 .as_str()
                 .parse::<i32>()?;
 
             let color = c_count_cap
                 .get(2)
-                .ok_or_else(|| AOCError::InvalidRegexOperation())?
+                .ok_or_else(|| AOCError::InvalidRegexOperation("incorrect capture".into()))?
                 .as_str();
 
             match color {
@@ -92,13 +92,13 @@ impl CubeCountGame {
 
         let id = game_cap
             .get(1)
-            .ok_or_else(|| AOCError::InvalidRegexOperation())?
+            .ok_or_else(|| AOCError::InvalidRegexOperation("incorect capture".into()))?
             .as_str()
             .parse::<i32>()?;
         
         let count_sets = game_cap
             .get(2)
-            .ok_or_else(|| AOCError::InvalidRegexOperation())?
+            .ok_or_else(|| AOCError::InvalidRegexOperation("incorect capture".into()))?
             .as_str()
             .split(';')
             .into_iter()
