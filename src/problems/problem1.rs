@@ -1,9 +1,7 @@
-use std::fs::File;
-use std::io::BufReader;
-use std::io::prelude::*;
 use std::path::Path;
 
-use super::error::AOCResult;
+use crate::aocbase::AOCResult;
+use crate::aocio::process_lines;
 
 pub trait LineNumberExtractor {
     fn get_number(&self, line: &String) -> Option<i32>;
@@ -119,19 +117,15 @@ impl LineNumberExtractor for NumMatchers {
 }
 
 pub fn run_part(input: impl AsRef<Path>, extractor: impl LineNumberExtractor) -> AOCResult<String> {
-    let mut reader = BufReader::new(File::open(input)?);
-    let mut buffer = String::new();
     let mut result = 0;
 
-    while reader.read_line(&mut buffer)? > 0 {
-        match extractor.get_number(&buffer) {
-            Some(v) => {
-                result += v;
-            }
+    process_lines(input, |line| {
+        match extractor.get_number(line) {
+            Some(v) => result += v,
             None => {}
         }
-        buffer.clear();
-    }
+        Ok(())
+    })?;
 
     Ok(format!("{result}"))
 }

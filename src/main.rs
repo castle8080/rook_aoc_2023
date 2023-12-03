@@ -1,4 +1,6 @@
 mod problems;
+mod aocbase;
+mod aocio;
 
 use problems:: {
     problem1,

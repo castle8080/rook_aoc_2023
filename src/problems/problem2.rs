@@ -1,13 +1,10 @@
-
-use std::fs::File;
-use std::io::BufReader;
-use std::io::prelude::*;
 use std::path::Path;
 
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use super::error::{AOCError, AOCResult};
+use crate::aocbase::{AOCError, AOCResult};
+use crate::aocio::process_lines;
 
 lazy_static! {
     static ref GAME_REGEX: Regex = Regex::new(r"^Game (\d+): (.*)").unwrap();
@@ -112,22 +109,6 @@ impl CubeCountGame {
     }
 }
 
-pub fn run_part<S, F>(input: impl AsRef<Path>, initial: S, f: F) -> AOCResult<S>
-    where F: Fn(S, &CubeCountGame) -> S
-{
-    let mut reader = BufReader::new(File::open(input)?);
-    let mut buffer = String::new();
-    let mut state = initial;
-
-    while reader.read_line(&mut buffer)? > 0 {
-        let game = CubeCountGame::parse(&buffer)?;
-        state = f(state, &game);
-        buffer.clear();
-    }
-
-    Ok(state)
-}
-
 pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
     let possible_counts = CubeCounts {
         red: 12,
@@ -135,21 +116,26 @@ pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
         blue: 14,
     };
 
-    let result = run_part(input, 0, |result, game| {
+    let mut result = 0;
+
+    process_lines(input, |line| {
+        let game = CubeCountGame::parse(line)?;
         if game.are_total_counts_possible(&possible_counts) {
-            result + game.id
+            result += game.id;
         }
-        else {
-            result
-        }
+        Ok(())
     })?;
 
     Ok(result.to_string())
 }
 
 pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
-    let result = run_part(input, 0, |result, game| {
-        game.get_max_counts().power_set() + result
+    let mut result = 0;
+
+    process_lines(input, |line| {
+        let game = CubeCountGame::parse(line)?;
+        result += game.get_max_counts().power_set();
+        Ok(())
     })?;
 
     Ok(result.to_string())
