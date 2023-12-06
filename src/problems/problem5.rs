@@ -14,17 +14,23 @@ lazy_static! {
     static ref MAP_START_REGEX: Regex = Regex::new(r"^([a-z]+)-to-([a-z]+) map:").unwrap();
 }
 
-type NumType = i64;
+fn update_min(opt: &mut Option<i64>, potential_min: i64) {
+    match opt {
+        None => *opt = Some(potential_min),
+        Some(min) if potential_min < *min => *opt = Some(potential_min),
+        _ =>{}
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct HorticultureRangeMap {
-    pub destination_start: NumType,
-    pub source_start: NumType,
-    pub length: NumType,
+    pub destination_start: i64,
+    pub source_start: i64,
+    pub length: i64,
 }
 
 impl HorticultureRangeMap {
-    pub fn translate(&self, n: NumType) -> Option<NumType> {
+    pub fn translate(&self, n: i64) -> Option<i64> {
         if n >= self.source_start && n < self.source_start + self.length {
             Some(self.destination_start + (n - self.source_start))
         }
@@ -39,6 +45,50 @@ pub struct HorticultureMap {
     pub source_type: String,
     pub destination_type: String,
     pub range_maps: Vec<HorticultureRangeMap>,
+}
+
+pub struct SeedRangeMinTranslator<'a> {
+    range_maps_sorted: Vec<&'a HorticultureRangeMap>,
+}
+
+impl<'a> SeedRangeMinTranslator<'a> {
+
+    pub fn new(range_maps: &'a Vec<HorticultureRangeMap>) -> Self {
+        let mut range_maps_sorted: Vec<&'a HorticultureRangeMap> = range_maps.iter().collect();
+        range_maps_sorted.sort_by_key(|range_map| range_map.source_start);
+        Self { range_maps_sorted }
+    }
+
+    pub fn translate(&self, start: i64, length: i64) -> Option<i64> {
+        let end = start + length;
+
+        let mut cur_passthrough_pos = start;
+        let mut cur_min: Option<i64> = None;
+
+        for range_map in self.range_maps_sorted.iter() {
+            let overlap_start = cmp::max(start, range_map.source_start);
+            let overlap_end = cmp::min(end, range_map.source_start + range_map.length);
+
+            if overlap_start < overlap_end {
+                // Check the overlap for new min
+                let range_min_translation = range_map.translate(overlap_start).unwrap();
+                update_min(&mut cur_min, range_min_translation);
+
+                // check for gap jump
+                if overlap_start > cur_passthrough_pos {
+                    update_min(&mut cur_min, cur_passthrough_pos);
+                    cur_passthrough_pos = overlap_end;
+                }
+            }
+        }
+
+        // Check for a remaining gap
+        if cur_passthrough_pos < end {
+            update_min(&mut cur_min, cur_passthrough_pos);
+        }
+
+        cur_min
+    }
 }
 
 impl HorticultureMap {
@@ -57,53 +107,11 @@ impl HorticultureMap {
         self.range_maps.push(range_map);
     }
 
-    pub fn get_min_translation(&self, start: NumType, length: NumType) -> Option<i64> {
-        let end = start + length;
-        let mut range_maps_sorted = self.range_maps.clone();
-
-        range_maps_sorted.sort_by_key(|range_map| range_map.source_start);
-
-        let mut cur_passthrough_pos = start;
-        let mut cur_min: Option<i64> = None;
-
-        for range_map in &self.range_maps {
-            let overlap_start = cmp::max(start, range_map.source_start);
-            let overlap_end = cmp::min(end, range_map.source_start + range_map.length);
-
-            if overlap_start < overlap_end {
-                // Check the overlap for new min
-                let range_min_translation = range_map.translate(overlap_start).unwrap();
-                cur_min = match cur_min {
-                    None => Some(range_min_translation),
-                    Some(_min) if range_min_translation < _min => Some(range_min_translation),
-                    _ => cur_min
-                };
-
-                // check for gap jump
-                if overlap_start > cur_passthrough_pos {
-                    cur_min = match cur_min {
-                        None => Some(cur_passthrough_pos),
-                        Some(_min) if cur_passthrough_pos < _min => Some(cur_passthrough_pos),
-                        _ => cur_min
-                    };
-                    cur_passthrough_pos = overlap_end;
-                }
-            }
-        }
-
-        // Check for a remaining gap
-        if cur_passthrough_pos < end {
-            cur_min = match cur_min {
-                None => Some(cur_passthrough_pos),
-                Some(_min) if cur_passthrough_pos < _min => Some(cur_passthrough_pos),
-                _ => cur_min
-            };
-        }
-
-        cur_min
+    pub fn seed_range_min_translator<'a>(&'a self) -> SeedRangeMinTranslator<'a> {
+        SeedRangeMinTranslator::new(&self.range_maps)
     }
 
-    pub fn translate(&self, n: NumType) -> NumType {
+    pub fn translate(&self, n: i64) -> i64 {
         for range_map in self.range_maps.iter() {
             if let Some(new_n) = range_map.translate(n) {
                 return new_n;
@@ -345,8 +353,8 @@ impl HorticulturePlan {
         }
     }
 
-    pub fn get_all_values<'a>(&'a self, seed: NumType) -> HashMap<&'a str, NumType> {
-        let mut values_map: HashMap<&'a str, NumType> = HashMap::new();
+    pub fn get_all_values<'a>(&'a self, seed: i64) -> HashMap<&'a str, i64> {
+        let mut values_map: HashMap<&'a str, i64> = HashMap::new();
         let mut cur_mapping = self.maps.get("seed");
         let mut last_value = seed;
 
@@ -384,8 +392,8 @@ impl HorticulturePlan {
                     .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid regex capture.".into()))?
                     .as_str()
                     .split_ascii_whitespace()
-                    .map(|s| s.parse::<NumType>())
-                    .collect::<Result<Vec<NumType>, ParseIntError>>()?;
+                    .map(|s| s.parse::<i64>())
+                    .collect::<Result<Vec<i64>, ParseIntError>>()?;
             }
             else if let Some(map_start_cap) = MAP_START_REGEX.captures(line) {
                 let source_type = map_start_cap
@@ -403,8 +411,8 @@ impl HorticulturePlan {
             else {
                 let map_range_numbers = line
                     .split_ascii_whitespace()
-                    .map(|s| s.parse::<NumType>())
-                    .collect::<Result<Vec<NumType>, ParseIntError>>()?;
+                    .map(|s| s.parse::<i64>())
+                    .collect::<Result<Vec<i64>, ParseIntError>>()?;
 
                 if map_range_numbers.len() != 3 {
                     return Err(AOCError::ParseError(format!("Invalid range mapping line: {}", line)));
@@ -440,14 +448,12 @@ impl HorticulturePlan {
 pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
     let plan = HorticulturePlan::parse(input)?;
 
-    let mut location_min: Option<NumType> = None;
+    let mut location_min: Option<i64> = None;
 
     for seed in plan.seeds.iter() {
         let seed_values = plan.get_all_values(*seed);
-        match (location_min, seed_values.get("location")) {
-            (None, Some(loc)) => location_min = Some(*loc),
-            (Some(min), Some(loc)) if *loc < min => location_min = Some(*loc),
-            _ => {}
+        if let Some(loc) = seed_values.get("location") {
+            update_min(&mut location_min, *loc);
         }
     }
 
@@ -460,16 +466,13 @@ pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
 pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
     let plan = HorticulturePlan::parse(input)?;
 
-    let mut location_min: Option<NumType> = None;
+    let mut location_min: Option<i64> = None;
 
     if let Some(combined_map) = plan.get_reduced("seed", "location") {
+        let seed_range_min_translator = combined_map.seed_range_min_translator();
         for (seed_start, seed_len) in plan.get_seed_range_pairs() {
-            if let Some(min_trans) = combined_map.get_min_translation(seed_start, seed_len) {
-                match location_min {
-                    None => location_min = Some(min_trans),
-                    Some(min) if min_trans < min => location_min = Some(min_trans),
-                    _ => {}
-                }
+            if let Some(min_trans) = seed_range_min_translator.translate(seed_start, seed_len) {
+                update_min(&mut location_min, min_trans);
             }
         }
     };
