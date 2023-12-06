@@ -42,4 +42,6 @@ fn main() {
     run_problem!(problem3, part2, "input/input_03.txt");
     run_problem!(problem4, part1, "input/input_04.txt");
     run_problem!(problem4, part2, "input/input_04.txt");
+    run_problem!(problem5, part1, "input/input_05.txt");
+    run_problem!(problem5, part2, "input/input_05.txt");
 }

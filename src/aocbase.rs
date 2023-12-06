@@ -1,7 +1,7 @@
 
 use thiserror::Error;
 
-use std::num::ParseIntError;
+use std::num::{ParseIntError, TryFromIntError};
 use std::io;
 use std::string::FromUtf8Error;
 
@@ -41,6 +41,11 @@ impl From<regex::Error> for AOCError {
 
 impl From<FromUtf8Error> for AOCError {
     fn from(value: FromUtf8Error) -> Self {
+        Self::ParseError(value.to_string())
+    }
+}
+impl From<TryFromIntError> for AOCError {
+    fn from(value: TryFromIntError) -> Self {
         Self::ParseError(value.to_string())
     }
 }
