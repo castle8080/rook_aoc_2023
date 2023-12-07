@@ -2,36 +2,8 @@ mod problems;
 mod aocbase;
 mod aocio;
 
-use std::time::Instant;
-use std::panic;
-
-macro_rules! run_problem {
-    // Match the pattern for the macro
-    ($problem:ident, $part:ident, $input:expr) => {{
-        use problems::$problem;
-        println!("Running: {}::{}", stringify!($problem), stringify!($part));
-        let start = Instant::now();
-
-        let result = panic::catch_unwind(|| {
-            $problem::$part($input)
-        });
-
-        let duration = start.elapsed();
-
-        match result {
-            Ok(Ok(answer)) => {
-                println!("Answer: {}", answer);
-            },
-            Ok(Err(e)) => {
-                println!("Failed: {:?}", e);
-            },
-            Err(e) => {
-                println!("Failed: Panic {:?}", e);
-            }
-        }
-        println!("Elapsed Time: {} milliseconds.", duration.as_micros() as f32 / 1000.0);
-    }};
-}
+#[macro_use]
+mod run;
 
 fn main() {
     run_problem!(problem1, part1, "input/input_01.txt");
@@ -46,4 +18,6 @@ fn main() {
     run_problem!(problem5, part2, "input/input_05.txt");
     run_problem!(problem6, part1, "input/input_06.txt");
     run_problem!(problem6, part2, "input/input_06.txt");
+    run_problem!(problem7, part1, "input/input_07.txt");
+    run_problem!(problem7, part2, "input/input_07.txt");
 }
