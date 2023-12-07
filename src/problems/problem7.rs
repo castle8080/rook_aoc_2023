@@ -13,7 +13,7 @@ lazy_static! {
 
 #[derive(Debug, Eq, Hash, PartialEq, Copy, Clone, PartialOrd, Ord)]
 pub enum Card {
-    Joker = 1,
+    Joker = 0,
     Two,
     Three,
     Four,
@@ -52,7 +52,7 @@ impl Card {
 
 #[derive(Debug, Eq, Hash, PartialEq, Copy, Clone, PartialOrd, Ord)]
 pub enum HandType {
-    HighCard = 1,
+    HighCard = 0,
     OnePair,
     TwoPair,
     ThreeOfAKind,
@@ -77,6 +77,21 @@ impl Hand {
             bid,
             hand_type,
         }
+    }
+
+    pub fn rank_score(&self) -> i64 {
+        // Calculates a single number for the rank from the hand type and inividual cards.
+        // Think of each card being a digit. There are 14 cards so I can basically think
+        // of a hand as being a single number in base 14.
+        let digits = Card::Ace as i64 + 1;
+        let mut score = self.hand_type as i64 * digits.pow(self.cards.len() as u32 + 1);
+
+        for (idx, card) in self.cards.iter().enumerate() {
+            let card_score = *card as i64;
+            score += card_score * digits.pow(self.cards.len() as u32 - idx as u32 - 1);
+        }
+
+        score
     }
 
     fn get_hand_type(cards: &Vec<Card>) -> HandType {
@@ -195,7 +210,7 @@ impl Hands {
     }
 
     pub fn sort_hands(&mut self) {
-        self.hands.sort_by_cached_key(|h| (h.hand_type, h.cards.clone()));
+        self.hands.sort_by_cached_key(|h| h.rank_score())
     }
 
     pub fn total_score(&self) -> i64 {
