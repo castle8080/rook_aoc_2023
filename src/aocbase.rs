@@ -17,6 +17,9 @@ pub enum AOCError {
 
     #[error("Invalid regex use: {0}")]
     InvalidRegexOperation(String),
+
+    #[error("Problem processing error: {0}")]
+    ProcessingError(String)
 }
 
 pub type AOCResult<T> = Result<T, AOCError>;

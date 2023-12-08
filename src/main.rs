@@ -20,4 +20,6 @@ fn main() {
     run_problem!(problem6, part2, "input/input_06.txt");
     run_problem!(problem7, part1, "input/input_07.txt");
     run_problem!(problem7, part2, "input/input_07.txt");
+    run_problem!(problem8, part1, "input/input_08.txt");
+    run_problem!(problem8, part2, "input/input_08.txt");
 }
