@@ -276,24 +276,15 @@ fn find_common_step(nc_iter_states: &mut Vec<NCIterState>) -> usize {
 pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
     let network = Network::parse(input)?;
 
-    // Finds a cycle in going through the commands for each start
-    // Using this cycle you can map out each ending node and instead of 
-    // walking each node, you skip steps using the cycle.
-    // This way you can iterate over each start looking at the next target item
-    // in step order and see when steps match.
-    // This is still slower than I would like, but I don't have another algorithm yet.
-    // Running ~ 15 seconds.
-    //
-    // I believe another sollution would involve representing the network cycles as
-    // diophantine equations (which I just learned about).
-    // It looks like there is an algorithm to solve a system of them.
-    // I would imagine this would yield a faster result.
-    // I did ask chat gpt to find this concept though.
-    //
-    // https://en.wikipedia.org/wiki/Diophantine_equation
-    //
-    // I might try and come back later and solving this using that method.
-    //
+    /*
+        Finds a cycle in going through the commands for each start
+        Using this cycle you can map out each ending node and instead of 
+        walking each node, you skip steps using the cycle.
+        This way you can iterate over each start looking at the next target item
+        in step order and see when steps match.
+        This is still slower than I would like, but I don't have another algorithm yet.
+        Running ~ 15 seconds.
+    */
 
     let starts = network.nodes
         .keys()
