@@ -1,0 +1,56 @@
+    Finished release [optimized] target(s) in 0.00s
+     Running `target/release/rook_aoc_2023`
+Running: problem1::part1
+Answer: 52974
+Elapsed Time: 0.08 milliseconds.
+Running: problem1::part2
+Answer: 53340
+Elapsed Time: 0.824 milliseconds.
+Running: problem2::part1
+Answer: 2331
+Elapsed Time: 0.761 milliseconds.
+Running: problem2::part2
+Answer: 71585
+Elapsed Time: 0.299 milliseconds.
+Running: problem3::part1
+Answer: 532331
+Elapsed Time: 0.324 milliseconds.
+Running: problem3::part2
+Answer: 82301120
+Elapsed Time: 0.3 milliseconds.
+Running: problem4::part1
+Answer: 27845
+Elapsed Time: 0.795 milliseconds.
+Running: problem4::part2
+Answer: 9496801
+Elapsed Time: 0.63 milliseconds.
+Running: problem5::part1
+Answer: 1181555926
+Elapsed Time: 0.163 milliseconds.
+Running: problem5::part2
+Answer: 37806486
+Elapsed Time: 0.071 milliseconds.
+Running: problem6::part1
+Answer: 503424
+Elapsed Time: 0.006 milliseconds.
+Running: problem6::part2
+Answer: 32607562
+Elapsed Time: 0.004 milliseconds.
+Running: problem7::part1
+Answer: 247961593
+Elapsed Time: 0.741 milliseconds.
+Running: problem7::part2
+Answer: 248750699
+Elapsed Time: 0.686 milliseconds.
+Running: problem8::part1
+Answer: 19951
+Elapsed Time: 0.77 milliseconds.
+Running: problem8::part2
+Answer: 16342438708751
+Elapsed Time: 12599.489 milliseconds.
+Running: problem9::part1
+Answer: 1666172641
+Elapsed Time: 0.286 milliseconds.
+Running: problem9::part2
+Answer: 933
+Elapsed Time: 0.378 milliseconds.

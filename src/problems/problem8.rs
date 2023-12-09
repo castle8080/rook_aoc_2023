@@ -173,6 +173,7 @@ pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
 
 /// Using information about a cycle in the network and choosing target nodes
 /// of interest you can figure out when the next target node will be visited.
+#[derive(Debug)]
 pub struct NetworkCycleIterator {
     pub pre_cycle: Vec<usize>,
     pub in_cycle: Vec<usize>,
@@ -229,6 +230,7 @@ impl NetworkCycleIterator {
     }
 }
 
+#[derive(Debug)]
 struct NCIterState {
     iterator: NetworkCycleIterator,
     nth: usize,
@@ -281,8 +283,17 @@ pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
     // in step order and see when steps match.
     // This is still slower than I would like, but I don't have another algorithm yet.
     // Running ~ 15 seconds.
-    // I am wondering if there is a way to use a least common denominator
-    // to find the match points to speed it up.
+    //
+    // I believe another sollution would involve representing the network cycles as
+    // diophantine equations (which I just learned about).
+    // It looks like there is an algorithm to solve a system of them.
+    // I would imagine this would yield a faster result.
+    // I did ask chat gpt to find this concept though.
+    //
+    // https://en.wikipedia.org/wiki/Diophantine_equation
+    //
+    // I might try and come back later and solving this using that method.
+    //
 
     let starts = network.nodes
         .keys()

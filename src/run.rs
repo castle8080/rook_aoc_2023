@@ -1,5 +1,4 @@
 
-
 macro_rules! run_problem {
     // Match the pattern for the macro
     ($problem:ident, $part:ident, $input:expr) => {{

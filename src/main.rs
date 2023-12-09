@@ -5,7 +5,7 @@ mod aocio;
 #[macro_use]
 mod run;
 
-fn main() {
+fn run_problems() {
     run_problem!(problem1, part1, "input/input_01.txt");
     run_problem!(problem1, part2, "input/input_01.txt");
     run_problem!(problem2, part1, "input/input_02.txt");
@@ -22,4 +22,10 @@ fn main() {
     run_problem!(problem7, part2, "input/input_07.txt");
     run_problem!(problem8, part1, "input/input_08.txt");
     run_problem!(problem8, part2, "input/input_08.txt");
+    run_problem!(problem9, part1, "input/input_09.txt");
+    run_problem!(problem9, part2, "input/input_09.txt");
+}
+
+fn main() {
+    run_problems();
 }
