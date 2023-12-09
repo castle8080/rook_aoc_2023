@@ -2,7 +2,7 @@ use std::num::ParseIntError;
 use std::path::Path;
 
 use crate::aocbase::{AOCError, AOCResult};
-use crate::aocio::process_lines;
+use crate::aocio::each_line;
 
 #[derive(Debug)]
 pub struct RaceWinner {
@@ -69,7 +69,7 @@ impl RaceRecords {
         let mut time_numbers: Option<Vec<i64>> = None;
         let mut distance_numbers: Option<Vec<i64>> = None;
 
-        process_lines(input, |line| {
+        each_line(input, |line| {
             if line.starts_with("Time:") {
                 time_numbers = Some(parse_info_numbers(line_xform(line))?);
             }

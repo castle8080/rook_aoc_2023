@@ -2,7 +2,7 @@ use std::num::ParseIntError;
 use std::path::Path;
 
 use crate::aocbase::AOCResult;
-use crate::aocio::process_lines;
+use crate::aocio::each_line;
 
 pub fn parse_line(line: impl AsRef<str>) -> AOCResult<Vec<i64>> {
     Ok(line.as_ref()
@@ -67,7 +67,7 @@ fn run_part<F>(input: impl AsRef<Path>, f: F) -> AOCResult<String>
 {
     let mut result: i64 = 0;
 
-    process_lines(input, |line| {
+    each_line(input, |line| {
         let nums = parse_line(line)?;
         let num_stack = NumStack::new(nums);
         result += f(&num_stack);

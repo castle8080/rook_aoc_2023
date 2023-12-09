@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::aocbase::{AOCError, AOCResult};
-use crate::aocio::process_lines;
+use crate::aocio::each_line;
 
 lazy_static! {
     static ref SEEDS_REGEX: Regex = Regex::new(r"^seeds: (.*)").unwrap();
@@ -378,7 +378,7 @@ impl HorticulturePlan {
         let mut plan = HorticulturePlan::new();
         let mut maps: Vec<HorticultureMap> = Vec::new();
 
-        process_lines(input, |line| {
+        each_line(input, |line| {
             let line = line.trim();
 
             // Skip blank lines

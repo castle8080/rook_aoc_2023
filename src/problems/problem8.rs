@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::aocbase::{AOCError, AOCResult};
-use crate::aocio::process_lines;
+use crate::aocio::each_line;
 
 lazy_static! {
     static ref COMMAND_REGEX: Regex = Regex::new(r"^\s*([RL]+)\s*$").unwrap();
@@ -121,7 +121,7 @@ impl Network {
     pub fn parse(input: impl AsRef<Path>) -> AOCResult<Self> {
         let mut network = Network::new();
 
-        process_lines(input, |line| {
+        each_line(input, |line| {
             if let Some(command_cap)  = COMMAND_REGEX.captures(line) {
                 let commands = command_cap
                     .get(1)

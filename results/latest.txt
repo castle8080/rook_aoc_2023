@@ -2,55 +2,55 @@
      Running `target/release/rook_aoc_2023`
 Running: problem1::part1
 Answer: 52974
-Elapsed Time: 0.068 milliseconds.
+Elapsed Time: 0.072 milliseconds.
 Running: problem1::part2
 Answer: 53340
-Elapsed Time: 0.793 milliseconds.
+Elapsed Time: 0.73 milliseconds.
 Running: problem2::part1
 Answer: 2331
-Elapsed Time: 0.807 milliseconds.
+Elapsed Time: 0.731 milliseconds.
 Running: problem2::part2
 Answer: 71585
-Elapsed Time: 0.366 milliseconds.
+Elapsed Time: 0.301 milliseconds.
 Running: problem3::part1
 Answer: 532331
-Elapsed Time: 0.472 milliseconds.
+Elapsed Time: 0.318 milliseconds.
 Running: problem3::part2
 Answer: 82301120
-Elapsed Time: 0.422 milliseconds.
+Elapsed Time: 0.283 milliseconds.
 Running: problem4::part1
 Answer: 27845
-Elapsed Time: 1.019 milliseconds.
+Elapsed Time: 0.723 milliseconds.
 Running: problem4::part2
 Answer: 9496801
-Elapsed Time: 0.732 milliseconds.
+Elapsed Time: 0.565 milliseconds.
 Running: problem5::part1
 Answer: 1181555926
-Elapsed Time: 0.299 milliseconds.
+Elapsed Time: 0.153 milliseconds.
 Running: problem5::part2
 Answer: 37806486
-Elapsed Time: 0.12 milliseconds.
+Elapsed Time: 0.077 milliseconds.
 Running: problem6::part1
 Answer: 503424
-Elapsed Time: 0.01 milliseconds.
+Elapsed Time: 0.006 milliseconds.
 Running: problem6::part2
 Answer: 32607562
-Elapsed Time: 0.005 milliseconds.
+Elapsed Time: 0.004 milliseconds.
 Running: problem7::part1
 Answer: 247961593
-Elapsed Time: 0.975 milliseconds.
+Elapsed Time: 0.708 milliseconds.
 Running: problem7::part2
 Answer: 248750699
-Elapsed Time: 0.634 milliseconds.
+Elapsed Time: 0.644 milliseconds.
 Running: problem8::part1
 Answer: 19951
-Elapsed Time: 0.754 milliseconds.
+Elapsed Time: 0.712 milliseconds.
 Running: problem8::part2
 Answer: 16342438708751
-Elapsed Time: 13485.362 milliseconds.
+Elapsed Time: 12934.401 milliseconds.
 Running: problem9::part1
 Answer: 1666172641
-Elapsed Time: 0.24 milliseconds.
+Elapsed Time: 0.189 milliseconds.
 Running: problem9::part2
 Answer: 933
-Elapsed Time: 0.238 milliseconds.
+Elapsed Time: 0.185 milliseconds.

@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::aocbase::{AOCError, AOCResult};
-use crate::aocio::process_lines;
+use crate::aocio::each_line;
 
 lazy_static! {
     static ref CARD_REGEX: Regex = Regex::new(r"Card +(\d+):([ \d]*)\|([ \d]*)").unwrap();
@@ -76,7 +76,7 @@ impl GameCard {
 pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
     let mut result = 0;
 
-    process_lines(input, |line| {
+    each_line(input, |line| {
         let card = GameCard::parse(line)?;
         result += card.score();
         Ok(())
@@ -88,7 +88,7 @@ pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
 
 pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
     let mut games: Vec<GameCard> = Vec::new();
-    process_lines(input, |line| {
+    each_line(input, |line| {
         games.push(GameCard::parse(line)?);
         Ok(())
     })?;

@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::aocbase::{AOCError, AOCResult};
-use crate::aocio::process_lines;
+use crate::aocio::each_line;
 
 lazy_static! {
     static ref GAME_REGEX: Regex = Regex::new(r"^Game (\d+): (.*)").unwrap();
@@ -118,7 +118,7 @@ pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
 
     let mut result = 0;
 
-    process_lines(input, |line| {
+    each_line(input, |line| {
         let game = CubeCountGame::parse(line)?;
         if game.are_total_counts_possible(&possible_counts) {
             result += game.id;
@@ -132,7 +132,7 @@ pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
 pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
     let mut result = 0;
 
-    process_lines(input, |line| {
+    each_line(input, |line| {
         let game = CubeCountGame::parse(line)?;
         result += game.get_max_counts().power_set();
         Ok(())

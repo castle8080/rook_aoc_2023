@@ -2,7 +2,7 @@ use std::path::Path;
 use std::collections::HashMap;
 
 use crate::aocbase::{AOCError, AOCResult};
-use crate::aocio::process_lines;
+use crate::aocio::each_line;
 
 use regex::Regex;
 use lazy_static::lazy_static;
@@ -202,7 +202,7 @@ pub struct Hands {
 impl Hands {
     pub fn load(input: impl AsRef<Path>, joker_type: Option<Card>) -> AOCResult<Hands> {
         let mut hands: Vec<Hand> = Vec::new();
-        process_lines(input, |line| {
+        each_line(input, |line| {
             hands.push(Hand::parse(line, joker_type)?);
             Ok(())
         })?;

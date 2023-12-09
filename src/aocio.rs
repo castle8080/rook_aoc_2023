@@ -6,7 +6,7 @@ use std::io::prelude::*;
 
 use crate::aocbase::AOCResult;
 
-pub fn process_lines<F>(input: impl AsRef<Path>, mut f: F) -> AOCResult<()>
+pub fn each_line<F>(input: impl AsRef<Path>, mut f: F) -> AOCResult<()>
     where F: FnMut(&String) -> AOCResult<()>
 {
     let mut reader = BufReader::new(File::open(input)?);

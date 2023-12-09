@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::aocbase::AOCResult;
-use crate::aocio::process_lines;
+use crate::aocio::each_line;
 
 pub trait LineNumberExtractor {
     fn get_number(&self, line: &String) -> Option<i32>;
@@ -119,7 +119,7 @@ impl LineNumberExtractor for NumMatchers {
 pub fn run_part(input: impl AsRef<Path>, extractor: impl LineNumberExtractor) -> AOCResult<String> {
     let mut result = 0;
 
-    process_lines(input, |line| {
+    each_line(input, |line| {
         match extractor.get_number(line) {
             Some(v) => result += v,
             None => {}
