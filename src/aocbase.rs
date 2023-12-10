@@ -47,8 +47,15 @@ impl From<FromUtf8Error> for AOCError {
         Self::ParseError(value.to_string())
     }
 }
+
 impl From<TryFromIntError> for AOCError {
     fn from(value: TryFromIntError) -> Self {
         Self::ParseError(value.to_string())
+    }
+}
+
+impl From<csv::Error> for AOCError {
+    fn from(value: csv::Error) -> Self {
+        Self::IOError(value.to_string())
     }
 }
