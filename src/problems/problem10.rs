@@ -49,7 +49,6 @@ impl Pipe {
     make_has_dir_method!(has_south => NorthSouth|SouthEast|SouthWest);
     make_has_dir_method!(has_east => EastWest|NorthEast|SouthEast);
     make_has_dir_method!(has_west => EastWest|NorthWest|SouthWest);
-    
 }
 
 #[derive(Debug)]
@@ -101,6 +100,23 @@ impl PipeMap {
         connections
     }
 
+    pub fn get_enclosure_path(&self, (start_h, start_w): (usize, usize)) -> Option<Vec<(usize, usize)>> {
+        let start_pos = (start_h, start_w);
+        let paths = self.search_paths(start_pos, start_pos);
+
+        for path in paths {
+            // You need more than 3 nodes in the path for a loop.
+            // this would be starting at one, going 1, and going back.
+            if path.len() > 3 {
+                // Just return the first path enclosuer.
+                // I suppose there could be more than 1?
+                return Some(path);
+            }
+        }
+
+        None
+    }
+
     pub fn search_paths(&self, (start_h, start_w): (usize, usize), (end_h, end_w): (usize, usize))
         -> Vec<Vec<(usize, usize)>> 
     {
@@ -109,12 +125,13 @@ impl PipeMap {
         search_path.add((start_h, start_w));
 
         let mut search_stack: Vec<SearchPath> = vec![search_path];
-
         let mut wanted_paths: Vec<Vec<(usize, usize)>> = Vec::new();
+        let mut branches: Vec<(usize, usize)> = Vec::new();
 
         while let Some(mut search_path) = search_stack.pop() {
             let (cur_h, cur_w) = search_path.path.last().unwrap();
-            let mut branches: Vec<(usize, usize)> = Vec::new();
+
+            branches.clear();
 
             for (next_h, next_w) in self.get_connected_positions((*cur_h, *cur_w)) {
                 // Is this a target!
@@ -178,7 +195,6 @@ impl PipeMap {
             .iter()
             .map(|line| {
                 line.iter()
-                    .filter(|c| **c != b'\n')
                     .map(|c| Pipe::from_char(*c as char))
                     .collect::<AOCResult<Vec<Pipe>>>()
             })
@@ -213,18 +229,11 @@ impl SearchPath {
 pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
     let pipe_map = PipeMap::parse(input)?;
     let start_pos = pipe_map.get_start()?;
-    let paths = pipe_map.search_paths(start_pos, start_pos);
 
-    let mut result = 0;
-
-    for path in paths {
-        if path.len() > 3 {
-            result = path.len() / 2;
-            break;
-        }
-    }
-
-    Ok(result.to_string())
+    pipe_map
+        .get_enclosure_path(start_pos)
+        .map(|path| (path.len() / 2).to_string())
+        .ok_or_else(|| AOCError::ProcessingError("No Enclosure Found!".into()))
 }
 
 pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
