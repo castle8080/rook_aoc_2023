@@ -28,7 +28,11 @@ pub fn read_lines_as_bytes(input: impl AsRef<Path>) -> AOCResult<Vec<Vec<u8>>> {
     let mut results: Vec<Vec<u8>> = Vec::new();
 
     while reader.read_until(b'\n', &mut buffer)? > 0 {
-        buffer.pop();
+        if let Some(b) = buffer.last() {
+            if *b == b'\n' {
+                buffer.pop();
+            }
+        }
         results.push(buffer.clone());
         buffer.clear();
     }
