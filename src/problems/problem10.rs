@@ -57,6 +57,7 @@ impl Pipe {
     make_has_dir_method!(has_east => EastWest|NorthEast|SouthEast);
     make_has_dir_method!(has_west => EastWest|NorthWest|SouthWest);
 
+    #[allow(dead_code)]
     pub fn render_unicode(&self) -> &str {
         use Pipe::*;
         match self {
@@ -95,6 +96,7 @@ impl PipeMap {
         Ok(PipeMap { map })
     }
 
+    #[allow(dead_code)]
     pub fn render(&self) -> String {
         let mut output = String::new();
 
