@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use crate::aocbase::{AOCResult, AOCError};
 use crate::aocio::read_lines_as_bytes;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash)]
 pub enum Pipe {
     Start = 0,
     NorthSouth,
@@ -30,6 +30,13 @@ macro_rules! make_has_dir_method {
 
 impl Pipe {
 
+    pub fn is_start(&self) -> bool {
+        match self {
+            Pipe::Start => true,
+            _ => false,
+        }
+    }
+
     pub fn from_char(c: char) -> AOCResult<Pipe> {
         use Pipe::*;
         Ok(match c {
@@ -49,6 +56,21 @@ impl Pipe {
     make_has_dir_method!(has_south => NorthSouth|SouthEast|SouthWest);
     make_has_dir_method!(has_east => EastWest|NorthEast|SouthEast);
     make_has_dir_method!(has_west => EastWest|NorthWest|SouthWest);
+
+    pub fn render_unicode(&self) -> &str {
+        use Pipe::*;
+        match self {
+            NorthWest => "\u{2518}",
+            NorthEast => "\u{2514}",
+            SouthEast => "\u{250c}",
+            SouthWest => "\u{2510}",
+            NorthSouth => "\u{2502}",
+            EastWest => "\u{2500}",
+            Ground => " ",
+            Start => "S",
+        }
+    }
+
 }
 
 #[derive(Debug)]
@@ -73,6 +95,20 @@ impl PipeMap {
         Ok(PipeMap { map })
     }
 
+    pub fn render(&self) -> String {
+        let mut output = String::new();
+
+        for line in self.map.iter() {
+            for cell in line {
+                output.push_str(cell.render_unicode());
+            }
+            output.push_str("\n");
+        }
+
+        output
+
+    }
+
     pub fn width(&self) -> usize {
         self.map[0].len()
     }
@@ -84,17 +120,20 @@ impl PipeMap {
     fn get_connected_positions(&self, (h, w): (usize, usize)) -> Vec<(usize, usize)> {
         let mut connections: Vec<(usize, usize)> = Vec::new();
 
-        let max_h = self.height() as i64;
-        let max_w = self.width() as i64;
+        let max_h = self.height();
+        let max_w = self.width();
 
-        for (h_delta, w_delta) in vec![(-1, 0), (1, 0), (0, -1), (0, 1)] {
-            let (nh, nw) = (h as i64 + h_delta, w as i64 + w_delta);
-            if nh >= 0 && nh < max_h && nw >= 0 && nw < max_w {
-                let (nh, nw) = (nh as usize, nw as usize);
-                if self.is_connected((h, w), (nh, nw)) {
-                    connections.push((nh as usize, nw as usize));
-                }
-            }
+        if h > 0  && self.is_connected((h, w), (h-1, w)) {
+            connections.push((h-1, w));
+        }
+        if h < max_h - 1 && self.is_connected((h, w), (h+1, w)) {
+            connections.push((h+1, w));
+        }
+        if w > 0 && self.is_connected((h, w), (h, w-1)) {
+            connections.push((h, w-1));
+        }
+        if w < max_w - 1 && self.is_connected((h, w), (h, w+1)) {
+            connections.push((h, w+1));
         }
 
         connections
@@ -134,6 +173,7 @@ impl PipeMap {
             branches.clear();
 
             for (next_h, next_w) in self.get_connected_positions((*cur_h, *cur_w)) {
+                //println!("connected: {next_h}, {next_w}");
                 // Is this a target!
                 if next_h == end_h && next_w == end_w {
                     let mut path = search_path.path.clone();
@@ -169,9 +209,13 @@ impl PipeMap {
         let p2 = self.map[h2][w2];
 
         match ((h2 as i64 - h1 as i64), (w2 as i64 - w1 as i64)) {
+            // 2 above 1
             (-1, 0) => p1.has_north() && p2.has_south(),
+            // 2 below 1
             (1, 0)  => p1.has_south() && p2.has_north(),
+            // 2 left of 1
             (0, -1) => p1.has_west() && p2.has_east(),
+            // 2 right of 1
             (0, 1)  => p1.has_east() && p2.has_west(),
             _ => false
         }
@@ -202,7 +246,6 @@ impl PipeMap {
 
         Ok(PipeMap::new(map)?)
     }
-
 }
 
 #[derive(Clone, Debug)]
@@ -230,35 +273,246 @@ pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
     let pipe_map = PipeMap::parse(input)?;
     let start_pos = pipe_map.get_start()?;
 
+    //println!("Solving for map:\n{}", pipe_map.render());
+
     pipe_map
         .get_enclosure_path(start_pos)
         .map(|path| (path.len() / 2).to_string())
         .ok_or_else(|| AOCError::ProcessingError("No Enclosure Found!".into()))
 }
 
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub enum Corner {
+    UpperLeft = 0,
+    UpperRight,
+    LowerLeft,
+    LowerRight,
+}
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct SpaceCorner {
+    h: usize,
+    w: usize,
+    corner: Corner,
+}
+
+struct InnerSpaceSolver<'a> {
+    pipe_map: &'a PipeMap,
+    visited: HashSet<SpaceCorner>,
+    search_stack: Vec<SpaceCorner>,
+    outside_locations: HashSet<(usize, usize)>,
+    enclosure_locations: HashSet<(usize, usize)>,
+}
+
+impl<'a> InnerSpaceSolver<'a> {
+
+    pub fn new(pipe_map: &'a PipeMap, enclosure_path: &Vec<(usize, usize)>) -> Self {
+        let mut enclosure_locations: HashSet<(usize, usize)> = HashSet::new();
+        for pos in enclosure_path {
+            enclosure_locations.insert(*pos);
+        }
+
+        InnerSpaceSolver {
+            pipe_map,
+            visited: HashSet::new(),
+            search_stack: Vec::new(),
+            outside_locations: HashSet::new(),
+            enclosure_locations,
+        }
+    }
+
+    pub fn solve(&mut self) -> i32 {
+        self.clear();
+        self.seed_search_stack();
+        self.run_search();
+        self.get_inner_tile_counts()
+
+    }
+
+    fn get_inner_tile_counts(&self) -> i32 {
+        let max_h = self.pipe_map.height();
+        let max_w = self.pipe_map.width();
+
+        let mut inner_tile_count = 0;
+
+        for h in 0..max_h {
+            for w in 0..max_w {
+                if !self.outside_locations.contains(&(h, w)) &&
+                    !self.enclosure_locations.contains(&(h, w))
+                {
+                    inner_tile_count += 1;
+                }
+            }
+        }
+
+        inner_tile_count
+    }
+
+    fn run_search(&mut self) {
+        while let Some(pos) = self.search_stack.pop() {
+            self.on_visit(&pos);
+            self.add_connections_to_visit(&pos);
+        }
+    }
+
+    fn on_visit(&mut self, pos: &SpaceCorner) {
+        // Track things of actual interest here
+        self.outside_locations.insert((pos.h, pos.w));
+    }
+
+    fn clear(&mut self) {
+        self.visited.clear();
+        self.search_stack.clear();
+        self.outside_locations.clear();
+    }
+
+    fn add_connections_to_visit(&mut self, pos: &SpaceCorner) {
+        let max_h = self.pipe_map.height();
+        let max_w = self.pipe_map.width();
+
+        let pipe = self.pipe_map.map[pos.h][pos.w];
+
+        match pos.corner {
+            Corner::UpperLeft => {
+                // Check upwards
+                if pos.h > 0 && !self.pipe_map.map[pos.h - 1][pos.w].is_start() {
+                    self.add_to_visit(SpaceCorner { h: pos.h - 1, w: pos.w, corner: Corner::LowerLeft });
+                }
+                // Check downwards
+                if !pipe.has_west() {
+                    self.add_to_visit(SpaceCorner { h: pos.h, w: pos.w, corner: Corner::LowerLeft });
+                }
+                // Check left
+                if pos.w > 0 && !self.pipe_map.map[pos.h][pos.w - 1].is_start() {
+                    self.add_to_visit(SpaceCorner { h: pos.h, w: pos.w - 1, corner: Corner::UpperRight });
+                }
+                // Check right
+                if !pipe.has_north() {
+                    self.add_to_visit(SpaceCorner { h: pos.h, w: pos.w, corner: Corner::UpperRight });
+                }
+            },
+            Corner::UpperRight => {
+                // Check upwards
+                if pos.h > 0 && !self.pipe_map.map[pos.h - 1][pos.w].is_start() {
+                    self.add_to_visit(SpaceCorner { h: pos.h - 1, w: pos.w, corner: Corner::LowerRight });
+                }
+                // Check downwards
+                if !pipe.has_east() {
+                    self.add_to_visit(SpaceCorner { h: pos.h, w: pos.w, corner: Corner::LowerRight });
+                }
+                // Check left
+                if !pipe.has_north() {
+                    self.add_to_visit(SpaceCorner { h: pos.h, w: pos.w, corner: Corner::UpperLeft });
+                }
+                // Check right
+                if pos.w < max_w - 1 && !self.pipe_map.map[pos.h][pos.w + 1].is_start() {
+                    self.add_to_visit(SpaceCorner { h: pos.h, w: pos.w + 1, corner: Corner::UpperLeft });
+                }
+            },
+            Corner::LowerLeft => {
+                // Check upwards
+                if !pipe.has_west() {
+                    self.add_to_visit(SpaceCorner { h: pos.h, w: pos.w, corner: Corner::UpperLeft });
+                }
+                // Check downwards
+                if pos.h < max_h - 1 && !self.pipe_map.map[pos.h + 1][pos.w].is_start() {
+                    self.add_to_visit(SpaceCorner { h: pos.h + 1, w: pos.w, corner: Corner::UpperLeft });
+                }
+                // Check left
+                if pos.w > 0 && !self.pipe_map.map[pos.h][pos.w - 1].is_start() {
+                    self.add_to_visit(SpaceCorner { h: pos.h, w: pos.w - 1, corner: Corner::LowerRight });
+                }
+                // Check right
+                if !pipe.has_south() {
+                    self.add_to_visit(SpaceCorner { h: pos.h, w: pos.w, corner: Corner::LowerRight });
+                }
+            },
+            Corner::LowerRight => {
+                // Check upwards
+                if !pipe.has_east() {
+                    self.add_to_visit(SpaceCorner { h: pos.h, w: pos.w, corner: Corner::UpperRight });
+                }
+                // Check downwards
+                if pos.h < max_h - 1 && !self.pipe_map.map[pos.h + 1][pos.w].is_start() {
+                    self.add_to_visit(SpaceCorner { h: pos.h + 1, w: pos.w, corner: Corner::UpperRight });
+                }
+                // Check left
+                if !pipe.has_south() {
+                    self.add_to_visit(SpaceCorner { h: pos.h, w: pos.w, corner: Corner::LowerLeft });
+                }
+                // Check right
+                if pos.w < max_w - 1 && !self.pipe_map.map[pos.h][pos.w + 1].is_start() {
+                    self.add_to_visit(SpaceCorner { h: pos.h, w: pos.w + 1, corner: Corner::LowerLeft });
+                }
+            }
+        }
+    }
+
+    fn add_to_visit(&mut self, node: SpaceCorner) {
+        if !self.visited.contains(&node) {
+            self.search_stack.push(node.clone());
+            self.visited.insert(node);
+        }
+    }
+
+    fn seed_search_stack_single(&mut self, h: usize, w: usize) {
+        let pipe = self.pipe_map.map[h][w];
+
+        if pipe.is_start() {
+            // Skip start for now, we don't know what it really is
+            return;
+        }
+
+        let max_h = self.pipe_map.height();
+        let max_w = self.pipe_map.width();
+
+        if h == 0 {
+            self.add_to_visit(SpaceCorner { h, w, corner: Corner::UpperLeft });
+            self.add_to_visit(SpaceCorner { h, w, corner: Corner::UpperRight });
+        }
+        else if h == max_h - 1 {
+            self.add_to_visit(SpaceCorner { h, w, corner: Corner::LowerLeft });
+            self.add_to_visit(SpaceCorner { h, w, corner: Corner::LowerRight });
+        }
+
+        if w == 0 {
+            self.add_to_visit(SpaceCorner { h, w, corner: Corner::UpperLeft });
+            self.add_to_visit(SpaceCorner { h, w, corner: Corner::LowerLeft });
+        }
+        else if w == max_w - 1 {
+            self.add_to_visit(SpaceCorner { h, w, corner: Corner::UpperRight });
+            self.add_to_visit(SpaceCorner { h, w, corner: Corner::LowerRight });
+        }
+    }
+
+    fn seed_search_stack(&mut self) {
+        let max_h = self.pipe_map.height();
+        let max_w = self.pipe_map.width();
+
+        for w in 0 .. max_w {
+            self.seed_search_stack_single(0, w);
+            self.seed_search_stack_single(max_h - 1, w);
+        }
+
+        for h in 0 .. max_h - 1 {
+            self.seed_search_stack_single(h, 0);
+            self.seed_search_stack_single(h, max_w - 1);
+        }
+    }
+}
+
 pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
+    let pipe_map = PipeMap::parse(input)?;
+    let start_pos = pipe_map.get_start()?;
 
-    // Start with walking all the edges as possible start points - fill a stack of paths.
-    // store visiting nodes as a tuple of 2 positions.
-    // this code would be easier if I change to position types.
-    // Being on a single space would be (p, p) where both positions are equal
-    // Being squeezed between pipes would be (p1, p2)
-    // I need to know on squeeze pipes what directions you can go.
-    // Do the search in this way from the outside edges and fill all space.
-    
-    // Can you squeeze between pipes on an edge?
-    // It might be better to use an enum of positions
-    // enum Positions {
-    //    Space(h, w),
-    //    PipeSqueeze(h1, w1, h2, w2),
-    //    EdgePipeSqueeze(h, w) 
-    // }
-    //
-    // Once the outside positions are marked,
-    // Scan through the board and look for Ground not marked.
-    //
-    // Answer in morning.
+    //println!("Solving for map:\n{}", pipe_map.render());
 
+    let enclosing_path = pipe_map
+        .get_enclosure_path(start_pos)
+        .ok_or_else(|| AOCError::ProcessingError("Could not find enclosing path.".into()))?;
 
-    Err(AOCError::ProcessingError("Not implemented".into()))
+    let mut ispace_solver = InnerSpaceSolver::new(&pipe_map, &enclosing_path);
+    let result = ispace_solver.solve();
+
+    Ok(result.to_string())
 }
