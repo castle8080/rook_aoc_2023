@@ -119,6 +119,72 @@ impl PipeMap {
         self.map.len()
     }
 
+    pub fn get_start(&self) -> AOCResult<(usize, usize)> {
+        for (h, row) in self.map.iter().enumerate() {
+            for (w, p) in row.iter().enumerate() {
+                if *p == Pipe::Start {
+                    return Ok((h, w));
+                }
+            }
+        }
+        Err(AOCError::ProcessingError("No start position found.".into()))
+    }
+
+    pub fn parse(input: impl AsRef<Path>) -> AOCResult<PipeMap> {
+        let lines = read_lines_as_bytes(input)?;
+
+        let map = lines
+            .iter()
+            .map(|line| {
+                line.iter()
+                    .map(|c| Pipe::from_char(*c as char))
+                    .collect::<AOCResult<Vec<Pipe>>>()
+            })
+            .collect::<AOCResult<Vec<Vec<Pipe>>>>()?;
+
+        Ok(PipeMap::new(map)?)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct SearchPath {
+    pub path: Vec<(usize, usize)>,
+    pub visited: HashSet<(usize, usize)>,
+}
+
+impl SearchPath {
+    pub fn new() -> Self {
+        SearchPath { path: Vec::new(), visited: HashSet::new() }
+    }
+
+    pub fn add(&mut self, pos: (usize, usize)) {
+        self.path.push(pos);
+        self.visited.insert(pos);
+    }
+
+    pub fn has_visited(&self, pos: &(usize, usize)) -> bool {
+        self.visited.contains(&pos)
+    }
+}
+
+struct PipeMapSolver<'a> {
+    pipe_map: &'a PipeMap,
+}
+
+impl<'a> PipeMapSolver<'a> {
+
+    pub fn new(pipe_map: &'a PipeMap) -> Self {
+        PipeMapSolver { pipe_map }
+    }
+
+    fn width(&self) -> usize {
+        self.pipe_map.width()
+    }
+
+    fn height(&self) -> usize {
+        self.pipe_map.height()
+    }
+
     fn get_connected_positions(&self, (h, w): (usize, usize)) -> Vec<(usize, usize)> {
         let mut connections: Vec<(usize, usize)> = Vec::new();
 
@@ -207,8 +273,8 @@ impl PipeMap {
     }
 
     pub fn is_connected(&self, (h1, w1): (usize, usize), (h2, w2): (usize, usize)) -> bool {
-        let p1 = self.map[h1][w1];
-        let p2 = self.map[h2][w2];
+        let p1 = self.pipe_map.map[h1][w1];
+        let p2 = self.pipe_map.map[h2][w2];
 
         match ((h2 as i64 - h1 as i64), (w2 as i64 - w1 as i64)) {
             // 2 above 1
@@ -222,62 +288,16 @@ impl PipeMap {
             _ => false
         }
     }
-
-    pub fn get_start(&self) -> AOCResult<(usize, usize)> {
-        for (h, row) in self.map.iter().enumerate() {
-            for (w, p) in row.iter().enumerate() {
-                if *p == Pipe::Start {
-                    return Ok((h, w));
-                }
-            }
-        }
-        Err(AOCError::ProcessingError("No start position found.".into()))
-    }
-
-    pub fn parse(input: impl AsRef<Path>) -> AOCResult<PipeMap> {
-        let lines = read_lines_as_bytes(input)?;
-
-        let map = lines
-            .iter()
-            .map(|line| {
-                line.iter()
-                    .map(|c| Pipe::from_char(*c as char))
-                    .collect::<AOCResult<Vec<Pipe>>>()
-            })
-            .collect::<AOCResult<Vec<Vec<Pipe>>>>()?;
-
-        Ok(PipeMap::new(map)?)
-    }
-}
-
-#[derive(Clone, Debug)]
-struct SearchPath {
-    pub path: Vec<(usize, usize)>,
-    pub visited: HashSet<(usize, usize)>,
-}
-
-impl SearchPath {
-    pub fn new() -> Self {
-        SearchPath { path: Vec::new(), visited: HashSet::new() }
-    }
-
-    pub fn add(&mut self, pos: (usize, usize)) {
-        self.path.push(pos);
-        self.visited.insert(pos);
-    }
-
-    pub fn has_visited(&self, pos: &(usize, usize)) -> bool {
-        self.visited.contains(&pos)
-    }
 }
 
 pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
     let pipe_map = PipeMap::parse(input)?;
     let start_pos = pipe_map.get_start()?;
+    let pipe_map_solver = PipeMapSolver::new(&pipe_map);
 
     //println!("Solving for map:\n{}", pipe_map.render());
 
-    pipe_map
+    pipe_map_solver
         .get_enclosure_path(start_pos)
         .map(|path| (path.len() / 2).to_string())
         .ok_or_else(|| AOCError::ProcessingError("No Enclosure Found!".into()))
@@ -506,10 +526,11 @@ impl<'a> InnerSpaceSolver<'a> {
 pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
     let pipe_map = PipeMap::parse(input)?;
     let start_pos = pipe_map.get_start()?;
+    let pipe_map_solver = PipeMapSolver::new(&pipe_map);
 
     //println!("Solving for map:\n{}", pipe_map.render());
 
-    let enclosing_path = pipe_map
+    let enclosing_path = pipe_map_solver
         .get_enclosure_path(start_pos)
         .ok_or_else(|| AOCError::ProcessingError("Could not find enclosing path.".into()))?;
 
