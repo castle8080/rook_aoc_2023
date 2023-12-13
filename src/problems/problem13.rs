@@ -1,6 +1,5 @@
 use std::path::Path;
 use std::mem::replace;
-use std::collections::HashSet;
 
 use crate::aocbase::{AOCResult, AOCError};
 use crate::aocio::each_line;
@@ -20,15 +19,6 @@ impl GroundCover {
                 return Err(AOCError::ParseError(format!("Invalid ground cover: ({})", c)));
             }
         })
-    }
-}
-
-impl GroundCover {
-    pub fn flip(&self) -> Self {
-        match self {
-            GroundCover::Ash => GroundCover::Rock,
-            GroundCover::Rock => GroundCover::Ash,
-        }
     }
 }
 
@@ -133,31 +123,6 @@ impl<'a> MirrorFinder<'a> {
         Self { island_map }
     }
 
-    pub fn count_positions_in_vertical_mirror_view<'i>(
-        &self, c: usize,
-        items: impl Iterator<Item=&'i (usize, usize)>) -> usize
-    {
-        let dist = c.min((self.island_map.width() - 1) - (c + 1));
-        let lower = c - dist;
-        let upper = c + dist;
-        //println!("count_positions_in_vertical_mirror_view: c={} lower={} upper={} dist={}", c, lower, upper, dist);
-        items
-            .filter(|(_, item_c)| item_c >= &lower && item_c <= &upper)
-            .count()
-    }
-
-    pub fn count_positions_in_horizontal_mirror_view<'i>(
-        &self, r: usize,
-        items: impl Iterator<Item=&'i (usize, usize)>) -> usize
-    {
-        let dist = r.min((self.island_map.height() - 1) - (r + 1));
-        let lower = r - dist;
-        let upper = r + 1 + dist;
-        items
-            .filter(|(item_r, _)| item_r >= &lower && item_r <= &upper)
-            .count()
-    }
-
     pub fn find_horizontals(&self) -> Vec<usize> {
         (0 .. self.island_map.height() - 1)
             .filter(|row| self.is_row_mirror(*row))
@@ -189,43 +154,32 @@ impl<'a> MirrorFinder<'a> {
         (0 .. dist).all(|delta| f(lower - delta, lower + 1 + delta))
     }
 
-    fn find_smudges(&self) -> HashSet<(usize, usize)> {
-        let row_smudges = self.find_row_mirror_smudges();
-        let col_smudges = self.find_column_mirror_smudges();
-
-        let mut all_smudges: HashSet<(usize, usize)> = HashSet::new();
-        all_smudges.extend(row_smudges);
-        all_smudges.extend(col_smudges);
-
-        all_smudges
-    }
-
-    fn find_row_mirror_smudges(&self) -> Vec<(usize, usize)> {
+    fn find_row_mirror_smudges(&self) -> Vec<(usize, usize, usize)> {
         (0 .. self.island_map.height() - 1)
             .flat_map(|row| self.find_row_mirror_smudge(row))
             .collect()
     }
 
-    fn find_column_mirror_smudges(&self) -> Vec<(usize, usize)> {
+    fn find_column_mirror_smudges(&self) -> Vec<(usize, usize, usize)> {
         (0 .. self.island_map.width() - 1)
             .flat_map(|col| self.find_column_mirror_smudge(col))
             .collect()
     }
 
-    fn find_row_mirror_smudge(&self, row: usize) -> Option<(usize, usize)> {
+    fn find_row_mirror_smudge(&self, row: usize) -> Option<(usize, usize, usize)> {
         let smudge = Self::find_smudge(row, self.island_map.height(), |r1, r2| {
             self.island_map.find_row_diffs(r1, r2)
         });
 
-        smudge.map(|(r1, _r2, c)| (r1, c))
+        smudge.map(|(r1, _r2, c)| (r1, c, row))
     }
 
-    fn find_column_mirror_smudge(&self, col: usize) -> Option<(usize, usize)> {
+    fn find_column_mirror_smudge(&self, col: usize) -> Option<(usize, usize, usize)> {
         let smudge = Self::find_smudge(col, self.island_map.width(), |c1, c2| {
             self.island_map.find_column_diffs(c1, c2)
         });
 
-        smudge.map(|(c1, _c2, r)| (r, c1))
+        smudge.map(|(c1, _c2, r)| (r, c1, col))
     }
 
     fn find_smudge<F>(lower: usize, max: usize, f: F) -> Option<(usize, usize, usize)>
@@ -279,41 +233,14 @@ pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
 pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
     let mut result: usize = 0;
 
-    IslandMap::parse_each(input, |mut island_map| {
+    IslandMap::parse_each(input, |island_map| {
         let mirror_finder = MirrorFinder::new(&island_map);
 
-        // Fix the smudges!
-        let smudges = mirror_finder.find_smudges();
-        
-        for (r, c) in &smudges {
-            island_map.map[*r][*c] = island_map.map[*r][*c].flip();
-        }
-        
-        // Need a new mirror finder after mutation.
-        let mirror_finder = MirrorFinder::new(&island_map);
+        let row_smudges = mirror_finder.find_row_mirror_smudges();
+        let col_smudges = mirror_finder.find_column_mirror_smudges();
 
-        // Each valid mirror had to have a smudge in it!
-        let verticals = mirror_finder.find_verticals();
-        let horizontals = mirror_finder.find_horizontals();
-
-
-        let horizontals = horizontals
-            .iter()
-            .filter(|r| {
-                let count = *(&mirror_finder.count_positions_in_horizontal_mirror_view(**r, smudges.iter()));
-                count == 1
-            })
-            .map(|c| *c)
-            .collect::<Vec<usize>>();
-
-        let verticals = verticals
-            .iter()
-            .filter(|c| {
-                let count = *(&mirror_finder.count_positions_in_vertical_mirror_view(**c, smudges.iter()));
-                count == 1
-            })
-            .map(|c| *c)
-            .collect::<Vec<usize>>();
+        let verticals: Vec<usize> = col_smudges.iter().map(|t| t.2).collect();
+        let horizontals: Vec<usize> = row_smudges.iter().map(|t| t.2).collect();
 
         result += score(&verticals, &horizontals);
 
