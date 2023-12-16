@@ -45,7 +45,6 @@ pub enum Direction {
 pub struct MirrorPlatform {
     pub width: usize,
     pub height: usize,
-    //pub rocks: HashMap<(usize, usize), RockType>,
     pub rocks: Vec<Vec<RockType>>,
 }
 
@@ -106,101 +105,8 @@ impl MirrorPlatform {
     }
 
     pub fn slide(&mut self, direction: Direction) {
-        // Setup common variables for iterating, getting, and setting
-        // values while sliding. This is to keep from repeating similar
-        // code for each direction.
-        let start: i64;
-        let end: i64;
-        let delta: i64;
-
-        let outer_start: i64;
-        let outer_end: i64;
-
-        let getter: fn(this: &MirrorPlatform, i64, i64) -> &RockType;
-        let setter: fn(this: &mut MirrorPlatform, i64, i64, RockType);
-
-        match direction {
-            Direction::North => {
-                start = 0;
-                end = self.height as i64;
-                delta = 1;
-                outer_start = 0;
-                outer_end = self.width as i64;
-                getter = Self::get_xy;
-                setter = Self::set_xy;
-            },
-            Direction::East => {
-                start = self.width as i64 - 1;
-                end = -1;
-                delta = -1;
-                outer_start = 0;
-                outer_end = self.height as i64;
-                getter = Self::get_yx;
-                setter = Self::set_yx;
-            },
-            Direction::South => {
-                start = self.height as i64 - 1;
-                end = -1;
-                delta = -1;
-                outer_start = 0;
-                outer_end = self.width as i64;
-                getter = Self::get_xy;
-                setter = Self::set_xy;
-            },
-            Direction::West => {
-                start = 0;
-                end = self.width as i64;
-                delta = 1;
-                outer_start = 0;
-                outer_end = self.height as i64;
-                getter = Self::get_yx;
-                setter = Self::set_yx;
-            }
-        }
-
-        // Perform the actual slide
-        for outer_pos in outer_start..outer_end {
-            // The inner loop does the slide for a row or column.
-            let mut inner_pos = start;
-            let mut move_to: Option<i64> = None;
-            
-            while inner_pos != end {
-                match getter(self, outer_pos, inner_pos) {
-                    RockType::Space => {
-                        if let None = move_to {
-                            move_to = Some(inner_pos);
-                        }
-                    },
-                    RockType::Rounded => {
-                        if let Some(move_pos) = move_to {
-                            setter(self, outer_pos, move_pos, RockType::Rounded);
-                            setter(self, outer_pos, inner_pos, RockType::Space);
-                            move_to = Some(move_pos + delta);
-                        }
-                    },
-                    RockType::Cube => {
-                        move_to = None;
-                    }
-                }
-                inner_pos += delta;
-            }
-        }
-    }
-
-    fn get_yx(&self, y: i64, x: i64) -> &RockType {
-        self.get(y as usize, x as usize).unwrap()
-    }
-
-    fn get_xy(&self, x: i64, y: i64) -> &RockType {
-        self.get_yx(y, x)
-    }
-
-    fn set_yx(&mut self, y: i64, x: i64, rock_type: RockType) {
-        self.set(y as usize, x as usize, rock_type);
-    }
-
-    fn set_xy(&mut self, x: i64, y: i64, rock_type: RockType) {
-        self.set_yx(y, x, rock_type)
+        let slider = MirrorPlatformSlider::new(self, direction);
+        slider.slide(self);
     }
 
     pub fn calculate_load(&self) -> usize {
@@ -213,6 +119,108 @@ impl MirrorPlatform {
             }
         }
         load
+    }
+}
+
+pub struct MirrorPlatformSlider {
+    start: i64,
+    end: i64,
+    delta: i64,
+
+    outer_start: i64,
+    outer_end: i64,
+
+    getter: fn(this: &MirrorPlatform, i64, i64) -> &RockType,
+    setter: fn(this: &mut MirrorPlatform, i64, i64, RockType),
+}
+
+impl MirrorPlatformSlider {
+
+    pub fn new(mirror_platform: &MirrorPlatform, direction: Direction) -> Self {
+        match direction {
+            Direction::North => MirrorPlatformSlider {
+                start: 0,
+                end: mirror_platform.height as i64,
+                delta: 1,
+                outer_start: 0,
+                outer_end: mirror_platform.width as i64,
+                getter: Self::get_xy,
+                setter: Self::set_xy,
+            },
+            Direction::East => MirrorPlatformSlider {
+                start: mirror_platform.width as i64 - 1,
+                end: -1,
+                delta: -1,
+                outer_start: 0,
+                outer_end: mirror_platform.height as i64,
+                getter: Self::get_yx,
+                setter: Self::set_yx,
+            },
+            Direction::South => MirrorPlatformSlider {
+                start: mirror_platform.height as i64 - 1,
+                end: -1,
+                delta: -1,
+                outer_start: 0,
+                outer_end: mirror_platform.width as i64,
+                getter: Self::get_xy,
+                setter: Self::set_xy,
+            },
+            Direction::West => MirrorPlatformSlider {
+                start: 0,
+                end: mirror_platform.width as i64,
+                delta: 1,
+                outer_start: 0,
+                outer_end: mirror_platform.height as i64,
+                getter: Self::get_yx,
+                setter: Self::set_yx,
+            }
+        }
+    }
+
+    fn slide(&self, mirror_platform: &mut MirrorPlatform) {
+        // Perform the actual slide
+        for outer_pos in self.outer_start..self.outer_end {
+            // The inner loop does the slide for a row or column.
+            let mut inner_pos = self.start;
+            let mut move_to: Option<i64> = None;
+            
+            while inner_pos != self.end {
+                match (self.getter)(mirror_platform, outer_pos, inner_pos) {
+                    RockType::Space => {
+                        if let None = move_to {
+                            move_to = Some(inner_pos);
+                        }
+                    },
+                    RockType::Rounded => {
+                        if let Some(move_pos) = move_to {
+                            (self.setter)(mirror_platform, outer_pos, move_pos, RockType::Rounded);
+                            (self.setter)(mirror_platform, outer_pos, inner_pos, RockType::Space);
+                            move_to = Some(move_pos + self.delta);
+                        }
+                    },
+                    RockType::Cube => {
+                        move_to = None;
+                    }
+                }
+                inner_pos += self.delta;
+            }
+        }
+    }
+
+    fn get_yx(mirror_platform: &MirrorPlatform, y: i64, x: i64) -> &RockType {
+        mirror_platform.get(y as usize, x as usize).unwrap()
+    }
+
+    fn get_xy(mirror_platform: &MirrorPlatform, x: i64, y: i64) -> &RockType {
+        Self::get_yx(mirror_platform, y, x)
+    }
+
+    fn set_yx(mirror_platform: &mut MirrorPlatform, y: i64, x: i64, rock_type: RockType) {
+        mirror_platform.set(y as usize, x as usize, rock_type);
+    }
+
+    fn set_xy(mirror_platform: &mut MirrorPlatform, x: i64, y: i64, rock_type: RockType) {
+        Self::set_yx(mirror_platform, y, x, rock_type)
     }
 }
 
