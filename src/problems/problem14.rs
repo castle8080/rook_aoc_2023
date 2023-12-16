@@ -8,6 +8,7 @@ use crate::aocio::read_lines_as_bytes;
 pub enum RockType {
     Rounded = 0,
     Cube,
+    Space,
 }
 
 impl RockType {
@@ -20,11 +21,11 @@ impl RockType {
 }
 
 impl RockType {
-    pub fn parse(c: char) -> AOCResult<Option<RockType>> {
+    pub fn parse(c: char) -> AOCResult<RockType> {
         Ok(match c {
-            'O' => Some(RockType::Rounded),
-            '#' => Some(RockType::Cube),
-            '.' => None,
+            'O' => RockType::Rounded,
+            '#' => RockType::Cube,
+            '.' => RockType::Space,
             _ => {
                 return Err(AOCError::ParseError(format!("Invalid rock type: ({})", c)));
             }
@@ -44,10 +45,30 @@ pub enum Direction {
 pub struct MirrorPlatform {
     pub width: usize,
     pub height: usize,
-    pub rocks: HashMap<(usize, usize), RockType>,
+    //pub rocks: HashMap<(usize, usize), RockType>,
+    pub rocks: Vec<Vec<RockType>>,
 }
 
 impl MirrorPlatform {
+
+    pub fn new(width: usize, height: usize) -> MirrorPlatform {
+        let mut rocks: Vec<Vec<RockType>> = Vec::new();
+        for _ in 0..height {
+            rocks.push(vec![RockType::Space; width]);
+        }
+        Self { width, height, rocks }
+    }
+
+    pub fn get(&self, y: usize, x: usize) -> Option<&RockType> {
+        match self.rocks.get(y) {
+            Some(row) => row.get(x),
+            None => None,
+        }
+    }
+
+    pub fn set(&mut self, y: usize, x: usize, rock_type: RockType) {
+        self.rocks[y][x] = rock_type;
+    }
 
     #[allow(dead_code)]
     pub fn render(&self) -> String {
@@ -55,17 +76,12 @@ impl MirrorPlatform {
 
         for y in 0..self.height {
             for x in 0..self.width {
-                match self.rocks.get(&(y, x)) {
-                    None => output.push(' '),
-                    Some(rock) => {
-                        if rock.is_rounded() {
-                            output.push('O');
-                        }
-                        else {
-                            output.push('#');
-                        }
-                    }
-                }
+                let c = match self.get(y, x) {
+                    Some(RockType::Cube) => '#',
+                    Some(RockType::Rounded) => 'O',
+                    _ => ' ',
+                };
+                output.push(c);
             }
             output.push('\n');
         }
@@ -78,17 +94,15 @@ impl MirrorPlatform {
 
         let width = map_data[0].len();
         let height = map_data.len();
-        let mut rocks: HashMap<(usize, usize), RockType> = HashMap::new();
+        let mut mirror_platform = MirrorPlatform::new(width, height);
 
         for (y, row) in map_data.iter().enumerate() {
             for (x, c) in row.iter().enumerate() {
-                if let Some(kind) = RockType::parse(*c as char)? {
-                    rocks.insert((y, x), kind);
-                }
+                mirror_platform.set(y, x, RockType::parse(*c as char)?);
             }
         }
 
-        Ok(MirrorPlatform { height, width, rocks })
+        Ok(mirror_platform)
     }
 
     pub fn slide(&mut self, direction: Direction) {
@@ -102,8 +116,8 @@ impl MirrorPlatform {
         let outer_start: i64;
         let outer_end: i64;
 
-        let getter: fn(this: &MirrorPlatform, i64, i64) -> Option<&RockType>;
-        let setter: fn(this: &mut MirrorPlatform, i64, i64, Option<RockType>);
+        let getter: fn(this: &MirrorPlatform, i64, i64) -> &RockType;
+        let setter: fn(this: &mut MirrorPlatform, i64, i64, RockType);
 
         match direction {
             Direction::North => {
@@ -152,19 +166,19 @@ impl MirrorPlatform {
             
             while inner_pos != end {
                 match getter(self, outer_pos, inner_pos) {
-                    None => {
+                    RockType::Space => {
                         if let None = move_to {
                             move_to = Some(inner_pos);
                         }
                     },
-                    Some(RockType::Rounded) => {
+                    RockType::Rounded => {
                         if let Some(move_pos) = move_to {
-                            setter(self, outer_pos, move_pos, Some(RockType::Rounded));
-                            setter(self, outer_pos, inner_pos, None);
+                            setter(self, outer_pos, move_pos, RockType::Rounded);
+                            setter(self, outer_pos, inner_pos, RockType::Space);
                             move_to = Some(move_pos + delta);
                         }
                     },
-                    Some(RockType::Cube) => {
+                    RockType::Cube => {
                         move_to = None;
                     }
                 }
@@ -173,33 +187,102 @@ impl MirrorPlatform {
         }
     }
 
-    fn get_yx(&self, y: i64, x: i64) -> Option<&RockType> {
-        self.rocks.get(&(y as usize, x as usize))
+    fn get_yx(&self, y: i64, x: i64) -> &RockType {
+        self.get(y as usize, x as usize).unwrap()
     }
 
-    fn get_xy(&self, x: i64, y: i64) -> Option<&RockType> {
+    fn get_xy(&self, x: i64, y: i64) -> &RockType {
         self.get_yx(y, x)
     }
 
-    fn set_yx(&mut self, y: i64, x: i64, rock_type: Option<RockType>) {
-        match rock_type {
-            None => self.rocks.remove(&(y as usize, x as usize)),
-            Some(rock_type) => self.rocks.insert((y as usize, x as usize), rock_type),
-        };
+    fn set_yx(&mut self, y: i64, x: i64, rock_type: RockType) {
+        self.set(y as usize, x as usize, rock_type);
     }
 
-    fn set_xy(&mut self, x: i64, y: i64, rock_type: Option<RockType>) {
+    fn set_xy(&mut self, x: i64, y: i64, rock_type: RockType) {
         self.set_yx(y, x, rock_type)
     }
 
     pub fn calculate_load(&self) -> usize {
         let mut load: usize = 0;
-        for ((y, _), rock_type) in &self.rocks {
-            if rock_type.is_rounded() {
-                load += self.height - y;
+        for (y, row) in self.rocks.iter().enumerate() {
+            for rock in row {
+                if rock.is_rounded() {
+                    load += self.height - y;
+                }
             }
         }
         load
+    }
+}
+
+pub struct SpinTiltSolver {
+    pub mirror_platform: MirrorPlatform,
+    cycle_start: Option<i64>,
+    cycle_end: Option<i64>,
+    map_steps: HashMap<Vec<Vec<RockType>>, (i64, usize)>,
+}
+
+impl SpinTiltSolver {
+    pub fn new(mirror_platform: MirrorPlatform) -> Self {
+        SpinTiltSolver {
+            mirror_platform,
+            cycle_start: None,
+            cycle_end: None,
+            map_steps: HashMap::new(),
+        }
+    }
+
+    pub fn find_cycle(&mut self) {
+        let mut cycle = 1;
+
+        self.cycle_start = None;
+        self.cycle_end = None;
+        self.map_steps = HashMap::new();
+
+        while self.cycle_start.is_none() {
+            self.run_cycle();
+    
+            match self.map_steps.get(&self.mirror_platform.rocks) {
+                None => {
+                    self.map_steps.insert(
+                        self.mirror_platform.rocks.clone(),
+                        (cycle, self.mirror_platform.calculate_load())
+                    );
+                },
+                Some((prev, _)) => {
+                    self.cycle_start = Some(*prev);
+                    self.cycle_end = Some(cycle);
+                }
+            }
+    
+            cycle += 1;
+        }
+    }
+
+    pub fn get_load(&self, cycle: i64) -> AOCResult<usize> {
+        let cycle_target = match (self.cycle_start, self.cycle_end) {
+            (Some(cycle_start), Some(cycle_end)) => {
+                Ok((cycle - cycle_start) % (cycle_end - cycle_start) + cycle_start)
+            },
+            _ => Err(AOCError::ProcessingError("Have not found cycle start/end.".into())),
+        }?;
+
+        // Find the board for that target cycle and calculate the load.
+        for (_, (cycle, load)) in &self.map_steps {
+            if *cycle == cycle_target {
+                return Ok(*load);
+            }
+        }
+
+        Err(AOCError::ProcessingError("Could not find target cycle.".into()))
+    }
+
+    pub fn run_cycle(&mut self) {
+        self.mirror_platform.slide(Direction::North);
+        self.mirror_platform.slide(Direction::West);
+        self.mirror_platform.slide(Direction::South);
+        self.mirror_platform.slide(Direction::East);
     }
 }
 
@@ -212,60 +295,12 @@ pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
 }
 
 pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
-    let mut mirror_platform = MirrorPlatform::parse(input)?;
-    let directions = vec![Direction::North, Direction::West, Direction::South, Direction::East];
+    let mirror_platform = MirrorPlatform::parse(input)?;
+    let mut solver = SpinTiltSolver::new(mirror_platform.clone());
 
-    // Using the rendered board as a key.
-    // I tried using a HashMap as a key itself and ran into issues.
-    // I see why this is an issue as you would need to sort to make a consistent key.
-    // I could try moving to a BTree or using Vec<Vec<RockType>> instead of trying to
-    // make it all sparse.
-    let mut board_cycles: HashMap<String, (i64, MirrorPlatform)> = HashMap::new();
+    solver.find_cycle();
 
-    let mut cycle_start: Option<i64> = None;
-    let mut cycle_end: Option<i64> = None;
+    let result = solver.get_load(1_000_000)?;
 
-    // Find a sequence where running a cycle gets back to a known state.
-    // Store the boards (mirror_platforms) for the cycles through the
-    // cycling sequence of configurations.
-    let mut cycle = 1;
-    while cycle_start.is_none() {
-        for d in &directions {
-            mirror_platform.slide(*d);
-        }
-
-        let s = mirror_platform.render();
-        match board_cycles.get(&s) {
-            None => {
-                board_cycles.insert(s, (cycle, mirror_platform.clone()));
-            },
-            Some((prev, _)) => {
-                cycle_start = Some(*prev);
-                cycle_end = Some(cycle);
-            }
-        }
-
-        cycle += 1;
-    }
-
-    let cycle_start = cycle_start
-        .ok_or_else(|| AOCError::ProcessingError("Could not find cycle start.".into()))?;
-
-    let cycle_end = cycle_end
-        .ok_or_else(|| AOCError::ProcessingError("Could not find cycle end.".into()))?;
-
-    // Use the start and end to figure out the equivalent state
-    // for the 1000000th value.
-
-    let cycle_target = (1_000_000_000 - cycle_start) % (cycle_end - cycle_start) + cycle_start;
-
-    // Find the board for that target cycle and calculate the load.
-    for (_, (cycle, mp)) in board_cycles {
-        if cycle == cycle_target {
-            let result = mp.calculate_load();
-            return Ok(result.to_string());
-        }
-    }
-
-    Err(AOCError::ProcessingError("Could not find target cycle.".into()))
+    Ok(result.to_string())
 }
