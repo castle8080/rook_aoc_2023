@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::path::Path;
+use std::process::exit;
 
 use crate::aocio::read_lines_as_bytes;
 use crate::aocbase::{AOCResult, AOCError};
@@ -170,8 +171,9 @@ impl ReflectionGrid {
 
 pub struct PhotonVisitor<'a> {
     pub reflection_grid: &'a mut ReflectionGrid,
-    visited: HashSet<Photon>,
-    photons: Vec<Photon>,
+    pub visited: HashSet<Photon>,
+    pub photons: Vec<Photon>,
+    pub exits: HashSet<(i64, i64)>,
 }
 
 impl<'a> PhotonVisitor<'a> {
@@ -180,6 +182,7 @@ impl<'a> PhotonVisitor<'a> {
             reflection_grid,
             visited: HashSet::new(),
             photons: Vec::new(),
+            exits: HashSet::new(),
         }
     }
 
@@ -200,16 +203,24 @@ impl<'a> PhotonVisitor<'a> {
 
             tile.energized += 1;
 
-            let mut photons = tile.reflector.apply(photon);
-            for photon in photons.iter_mut() {
-                photon.move_step();
+            let cur_pos = photon.position.clone();
 
-                if photon.position.x >= 0 && photon.position.x < width &&
-                    photon.position.y >= 0 && photon.position.y < height &&
-                    !self.visited.contains(photon)
+            let mut photons = tile.reflector.apply(photon);
+            for next_photon in photons.iter_mut() {
+                next_photon.move_step();
+
+                if self.visited.contains(next_photon) {
+                    // Skip
+                }
+                else if next_photon.position.x < 0 || next_photon.position.x >= width ||
+                    next_photon.position.y < 0 || next_photon.position.y >= height
                 {
-                    self.visited.insert(photon.clone());
-                    self.photons.push(*photon);
+                    // Track exit points
+                    self.exits.insert((cur_pos.y, cur_pos.x));
+                }
+                else {
+                    self.visited.insert(next_photon.clone());
+                    self.photons.push(*next_photon);
                 }
             }
         }
@@ -230,11 +241,20 @@ pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
     let reflection_grid = ReflectionGrid::parse(input)?;
 
     let mut energized_counts: Vec<i64> = Vec::new();
+    let mut exit_points: HashSet<(i64, i64)> = HashSet::new();
 
     let mut send_and_record = |photon: Photon| {
-        let mut rg = reflection_grid.clone();
-        rg.send_photon(&photon);
-        energized_counts.push(rg.get_energized_count());
+        if !exit_points.contains(&(photon.position.y, photon.position.x)) {
+            let mut rg = reflection_grid.clone();
+            let mut visitor = PhotonVisitor::new(&mut rg);
+            visitor.visit(&photon);
+
+            for p in visitor.exits {
+                exit_points.insert(p);
+            }
+
+            energized_counts.push(rg.get_energized_count());
+        }
     };
 
     for x in 0..reflection_grid.width() {
