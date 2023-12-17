@@ -10,6 +10,12 @@ pub struct Position {
     x: i64,
 }
 
+impl Position {
+    pub fn new(y: i64, x: i64) -> Self {
+        Self { y, x }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Photon {
     position: Position,
@@ -17,6 +23,13 @@ pub struct Photon {
 }
 
 impl Photon {
+    pub fn new(y: i64, x: i64, yv: i64, xv: i64) -> Self {
+        Self {
+            position: Position::new(y, x),
+            vector: Position::new(yv, xv),
+        }
+    }
+
     pub fn with_vector(&self, y: i64, x: i64) -> Photon {
         Photon { position: self.position.clone(), vector: Position { y, x } }
     }
@@ -205,15 +218,38 @@ impl<'a> PhotonVisitor<'a> {
 
 pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
     let mut reflection_grid = ReflectionGrid::parse(input)?;
-
-    let initial_photon = Photon {
-        position: Position { y: 0, x: 0 },
-        vector: Position { y: 0, x: 1 },
-    };
+    let initial_photon = Photon::new(0, 0, 0, 1);
 
     reflection_grid.send_photon(&initial_photon);
-
     let result = reflection_grid.get_energized_count();
 
     Ok(result.to_string())
+}
+
+pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
+    let reflection_grid = ReflectionGrid::parse(input)?;
+
+    let mut energized_counts: Vec<i64> = Vec::new();
+
+    let mut send_and_record = |photon: Photon| {
+        let mut rg = reflection_grid.clone();
+        rg.send_photon(&photon);
+        energized_counts.push(rg.get_energized_count());
+    };
+
+    for x in 0..reflection_grid.width() {
+        send_and_record(Photon::new(0, x, 1, 0));
+        send_and_record(Photon::new(reflection_grid.height()-1, x, -1, 0));
+    }
+
+    for y in 0..reflection_grid.height() {
+        send_and_record(Photon::new(y, 0, 0, 1));
+        send_and_record(Photon::new(0, reflection_grid.width() - 1, 0, -1));
+    }
+
+    let max_ec = energized_counts.iter().max();
+    
+    Ok(max_ec
+        .ok_or_else(|| AOCError::ProcessingError("No maximum value found.".into()))?
+        .to_string())
 }
