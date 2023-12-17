@@ -174,21 +174,6 @@ impl<'a> HLPathFinder<'a> {
                 if rules.check_prune(self, &pf_st, direction_tracking) {
                     return;
                 }
-                /* 
-                for (k_d_count, k_hl) in pos_dir_map {
-                    if *k_d_count >= 4 {
-                        if *k_d_count <= pf_st.direction_count && *k_hl <= pf_st.heat_loss {
-                            return;
-                        }
-                    }
-                    else {
-
-                        if *k_d_count == pf_st.direction_count && *k_hl <= pf_st.heat_loss {
-                            return;
-                        }
-                    }
-                }
-                */
             }
         };
 
