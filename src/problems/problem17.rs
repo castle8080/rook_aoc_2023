@@ -50,7 +50,7 @@ impl HeatLossMap {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Direction {
-    Up,
+    Up = 0,
     Down,
     Left,
     Right,
@@ -129,9 +129,19 @@ impl PathFindState {
 
 pub trait HLPathFinderRules {
 
-    fn is_endable(&self, path_finder: &HLPathFinder, pf_st: &PathFindState) -> bool;
+    fn is_endable(&self,
+        path_finder: &HLPathFinder,
+        pf_st: &PathFindState) -> bool;
 
-    fn check_direction(&self, path_finder: &HLPathFinder, pf_st: &PathFindState, d: &Direction) -> bool;
+    fn check_direction(&self,
+        path_finder: &HLPathFinder,
+        pf_st: &PathFindState,
+        d: &Direction) -> bool;
+
+    fn check_prune(&self,
+        path_finder: &HLPathFinder,
+        pf_st: &PathFindState,
+        direction_tracking: &HashMap<i32, i32>) -> bool;
 }
 
 pub struct HLPathFinder<'a>
@@ -139,7 +149,7 @@ pub struct HLPathFinder<'a>
     heat_loss_map: &'a HeatLossMap,
     end: (i32, i32),
     path_find_states: BinaryHeap<PathFindState>,
-    known_states: HashMap<(i32, i32, Direction, i32), i32>,
+    known_states: HashMap<(i32, i32, Direction), HashMap<i32, i32>>,
 } 
 
 impl<'a> HLPathFinder<'a> {
@@ -153,21 +163,46 @@ impl<'a> HLPathFinder<'a> {
         }
     }
 
-    fn add_state(&mut self, pf_st: PathFindState) {
-        let key = (pf_st.y, pf_st.x, pf_st.direction.clone(), pf_st.direction_count);
-        if let Some(hl) = self.known_states.get(&key) {
-            if *hl <= pf_st.heat_loss {
-                return;
+    fn add_state(&mut self, pf_st: PathFindState, rules: &impl HLPathFinderRules) {
+        let key = (pf_st.y, pf_st.x, pf_st.direction.clone());
+
+        match self.known_states.get(&key) {
+            None => {
+                self.known_states.insert(key.clone(), HashMap::new());
+            },
+            Some(direction_tracking) => {
+                if rules.check_prune(self, &pf_st, direction_tracking) {
+                    return;
+                }
+                /* 
+                for (k_d_count, k_hl) in pos_dir_map {
+                    if *k_d_count >= 4 {
+                        if *k_d_count <= pf_st.direction_count && *k_hl <= pf_st.heat_loss {
+                            return;
+                        }
+                    }
+                    else {
+
+                        if *k_d_count == pf_st.direction_count && *k_hl <= pf_st.heat_loss {
+                            return;
+                        }
+                    }
+                }
+                */
             }
-        }
-        self.known_states.insert(key, pf_st.heat_loss);
+        };
+
+        // The code above should guarantee key exists.
+        self.known_states
+            .get_mut(&key)
+            .unwrap()
+            .insert(pf_st.direction_count, pf_st.heat_loss);
+
         self.path_find_states.push(pf_st);
     }
 
-    pub fn find<T>(&mut self, (y, x): (i32, i32), rules: &T) -> AOCResult<PathFindState>
-        where T: HLPathFinderRules
-    {
-        self.add_state(PathFindState::new(0, Direction::Down, 0, y, x));
+    pub fn find(&mut self, (y, x): (i32, i32), rules: &impl HLPathFinderRules) -> AOCResult<PathFindState> {
+        self.add_state(PathFindState::new(0, Direction::Down, 0, y, x), rules);
 
         let directions = vec![
             Direction::Up,
@@ -205,7 +240,7 @@ impl<'a> HLPathFinder<'a> {
                     next_pf_st.heat_loss += hl;
 
                     // Push onto heap search states.
-                    self.add_state(next_pf_st);
+                    self.add_state(next_pf_st, rules);
                 }
             }
 
@@ -226,13 +261,33 @@ impl Part1PathFinderRules {
 
 impl HLPathFinderRules for Part1PathFinderRules {
     
-    fn is_endable(&self, _path_finder: &HLPathFinder, _pf_st: &PathFindState) -> bool {
+    fn is_endable(&self,
+        _path_finder: &HLPathFinder,
+        _pf_st: &PathFindState) -> bool
+    {
         true
     }
 
-    fn check_direction(&self, _path_finder: &HLPathFinder, pf_st: &PathFindState, d: &Direction) -> bool {
+    fn check_direction(&self,
+        _path_finder: &HLPathFinder,
+        pf_st: &PathFindState,
+        d: &Direction) -> bool
+    {
         !pf_st.direction.opposite(d) &&
             (pf_st.direction_count < 3 || pf_st.direction != *d)
+    }
+
+    fn check_prune(&self,
+        _path_finder: &HLPathFinder,
+        pf_st: &PathFindState,
+        direction_tracking: &HashMap<i32, i32>) -> bool
+    {
+        for (k_d_count, k_hl) in direction_tracking {
+            if *k_d_count <= pf_st.direction_count && *k_hl <= pf_st.heat_loss {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -264,6 +319,26 @@ impl HLPathFinderRules for Part2PathFinderRules {
         else {
             true
         }
+    }
+
+    fn check_prune(&self,
+        _path_finder: &HLPathFinder,
+        pf_st: &PathFindState,
+        direction_tracking: &HashMap<i32, i32>) -> bool
+    {
+        for (k_d_count, k_hl) in direction_tracking {
+            // If it has gone at least 4 it had some choice.
+            if *k_d_count >= 4 {
+                if *k_d_count <= pf_st.direction_count && *k_hl <= pf_st.heat_loss {
+                    return true;
+                }
+            }
+            // Otherwise just use current count
+            else if *k_d_count == pf_st.direction_count && *k_hl <= pf_st.heat_loss {
+                return true;
+            }
+        }
+        false
     }
 }
 
