@@ -127,7 +127,15 @@ impl PathFindState {
     }
 }
 
-pub struct HLPathFinder<'a> {
+pub trait HLPathFinderRules {
+
+    fn is_endable(&self, path_finder: &HLPathFinder, pf_st: &PathFindState) -> bool;
+
+    fn check_direction(&self, path_finder: &HLPathFinder, pf_st: &PathFindState, d: &Direction) -> bool;
+}
+
+pub struct HLPathFinder<'a>
+{
     heat_loss_map: &'a HeatLossMap,
     end: (i32, i32),
     path_find_states: BinaryHeap<PathFindState>,
@@ -135,6 +143,7 @@ pub struct HLPathFinder<'a> {
 } 
 
 impl<'a> HLPathFinder<'a> {
+
     pub fn new(heat_loss_map: &'a HeatLossMap, end: (i32, i32)) -> Self {
         Self {
             heat_loss_map,
@@ -155,7 +164,9 @@ impl<'a> HLPathFinder<'a> {
         self.path_find_states.push(pf_st);
     }
 
-    pub fn find(&mut self, (y, x): (i32, i32)) -> AOCResult<PathFindState> {
+    pub fn find<T>(&mut self, (y, x): (i32, i32), rules: &T) -> AOCResult<PathFindState>
+        where T: HLPathFinderRules
+    {
         self.add_state(PathFindState::new(0, Direction::Down, 0, y, x));
 
         let directions = vec![
@@ -169,16 +180,15 @@ impl<'a> HLPathFinder<'a> {
         let height = self.heat_loss_map.height();
 
         while let Some(pf_st) = self.path_find_states.pop() {
-            //println!("Looking at: {:?}", pf_st);
-
             // Found end state
-            if pf_st.y == self.end.0 && pf_st.x == self.end.1 {
+            if pf_st.y == self.end.0 && pf_st.x == self.end.1 &&
+                rules.is_endable(self, &pf_st)
+            {
                 return Ok(pf_st);
             }
 
             for d in &directions {
-                // Skip going back
-                if d.opposite(&pf_st.direction) {
+                if !rules.check_direction(self, &pf_st, &d) {
                     continue;
                 }
 
@@ -187,8 +197,7 @@ impl<'a> HLPathFinder<'a> {
                 if next_pf_st.y >= 0 &&
                     next_pf_st.y < height &&
                     next_pf_st.x >= 0 &&
-                    next_pf_st.x < width &&
-                    next_pf_st.direction_count <= 3
+                    next_pf_st.x < width
                 {
                     let hl = self.heat_loss_map.get_value(next_pf_st.y, next_pf_st.x);
 
@@ -206,10 +215,70 @@ impl<'a> HLPathFinder<'a> {
     }
 }
 
-pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
+pub struct Part1PathFinderRules {
+}
+
+impl Part1PathFinderRules {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl HLPathFinderRules for Part1PathFinderRules {
+    
+    fn is_endable(&self, _path_finder: &HLPathFinder, _pf_st: &PathFindState) -> bool {
+        true
+    }
+
+    fn check_direction(&self, _path_finder: &HLPathFinder, pf_st: &PathFindState, d: &Direction) -> bool {
+        !pf_st.direction.opposite(d) &&
+            (pf_st.direction_count < 3 || pf_st.direction != *d)
+    }
+}
+
+pub struct Part2PathFinderRules {
+}
+
+impl Part2PathFinderRules {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl HLPathFinderRules for Part2PathFinderRules {
+    
+    fn is_endable(&self, _path_finder: &HLPathFinder, pf_st: &PathFindState) -> bool {
+        pf_st.direction_count >= 4
+    }
+
+    fn check_direction(&self, _path_finder: &HLPathFinder, pf_st: &PathFindState, d: &Direction) -> bool {
+        if pf_st.direction.opposite(d) {
+            false
+        }
+        else if pf_st.direction_count < 4 {
+            *d == pf_st.direction
+        }
+        else if pf_st.direction_count >= 10 {
+            *d != pf_st.direction
+        }
+        else {
+            true
+        }
+    }
+}
+
+pub fn run_part(input: impl AsRef<Path>, rules: impl HLPathFinderRules) -> AOCResult<String> {
     let hl_map = HeatLossMap::parse(input)?;
     let mut path_finder = HLPathFinder::new(&hl_map, (hl_map.height() - 1, hl_map.width() - 1));
-    let result = path_finder.find((0, 0))?;
+    let result = path_finder.find((0, 0), &rules)?;
 
     Ok(result.heat_loss.to_string())
+}
+
+pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
+    run_part(input, Part1PathFinderRules::new())
+}
+
+pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
+    run_part(input, Part2PathFinderRules::new())
 }
