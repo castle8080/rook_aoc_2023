@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
@@ -153,6 +154,39 @@ pub struct WorkflowStep {
 
 impl WorkflowStep {
 
+    // Splits up part combinations into those that match and those that don't.
+    pub fn process_combinations(&self, part_combinations: &PartAttributeCombination)
+        -> AOCResult<(WorkflowResult, PartAttributeCombination, PartAttributeCombination)>
+    {
+        use WorkflowStepCondition::*;
+
+        Ok(match &self.condition {
+            True => {
+                (self.result.clone(), part_combinations.clone(), PartAttributeCombination::new_empty())
+            },
+            GreaterThan(attr, num) => {
+                let (parts_in, parts_out): (HashSet<i32>, HashSet<i32>) = part_combinations
+                    .get(&attr)
+                    .iter()
+                    .partition(|v| *v > &num);
+
+                (self.result.clone(),
+                    part_combinations.with_attributes(attr, parts_in),
+                    part_combinations.with_attributes(attr, parts_out))
+            },
+            LessThan(attr, num) => {
+                let (parts_in, parts_out): (HashSet<i32>, HashSet<i32>) = part_combinations
+                    .get(&attr)
+                    .iter()
+                    .partition(|v| *v < &num);
+
+                (self.result.clone(),
+                    part_combinations.with_attributes(attr, parts_in),
+                    part_combinations.with_attributes(attr, parts_out))
+            },
+        })
+    }
+
     pub fn process(&self, part: &Part) -> Option<WorkflowResult> {
         if self.condition.matches(part) {
             Some(self.result.clone())
@@ -224,6 +258,39 @@ pub struct Workflow {
 
 impl Workflow {
 
+    // Splits the part attribute combination into the different set of results it could have.
+    pub fn process_combinations(&self, part_combinations: &PartAttributeCombination)
+        -> AOCResult<Vec<(WorkflowResult, PartAttributeCombination)>>
+    {
+        let mut result: Vec<(WorkflowResult, PartAttributeCombination)> = Vec::new();
+        self.process_combinations_recur(0, part_combinations, &mut result)?;
+        Ok(result)
+    }
+
+    // Recursion helps me not clone combinations as much
+    fn process_combinations_recur(&self,
+        step_idx: usize,
+        remaining_part_combinations: &PartAttributeCombination,
+        result: &mut Vec<(WorkflowResult, PartAttributeCombination)>)
+        -> AOCResult<()>
+    {
+        if step_idx >= self.steps.len() {
+            return Ok(());
+        }
+        let step = &self.steps[step_idx];
+        let (step_result, step_in, step_out) = step.process_combinations(&remaining_part_combinations)?;
+
+        if !step_in.is_empty() {
+            result.push((step_result.clone(), step_in));
+        }
+
+        if !step_out.is_empty() {
+            self.process_combinations_recur(step_idx + 1, &step_out, result)?;
+        }
+
+        Ok(())
+    }
+    
     pub fn process(&self, part: &Part) -> AOCResult<WorkflowResult> {
         for step in &self.steps {
             match step.process(part) {
@@ -297,6 +364,50 @@ impl Workflows {
             }
         }
     }
+
+    fn get_accepted_combinations_recur(
+        &self,
+        part_combinations: &PartAttributeCombination,
+        name: impl AsRef<str>,
+        result_combinations: &mut Vec<PartAttributeCombination>) -> AOCResult<()>
+    {
+        let workflow = self.get_workflow(name)?;
+
+        for (wf_result, sub_part_combinations) in workflow.process_combinations(part_combinations)? {
+            if !sub_part_combinations.is_empty() {
+                match wf_result {
+                    WorkflowResult::Accept => {
+                        result_combinations.push(sub_part_combinations);
+                    },
+                    WorkflowResult::Reject => {
+                        // skip
+                    },
+                    WorkflowResult::Proceed(next_wf_name) => {
+                        self.get_accepted_combinations_recur(
+                            &sub_part_combinations,
+                            next_wf_name,
+                            result_combinations)?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn get_accepted_combinations(&self, part_combinations: &PartAttributeCombination)
+        -> AOCResult<Vec<PartAttributeCombination> >
+    {
+        let mut accepted_part_combos: Vec<PartAttributeCombination> = Vec::new();
+
+        self.get_accepted_combinations_recur(
+            part_combinations,
+            "in",
+            &mut accepted_part_combos
+        )?;
+        
+        Ok(accepted_part_combos)
+    }
 }
 
 pub fn parse_worksheet(input: impl AsRef<Path>) -> AOCResult<(Workflows, Vec<Part>)> {
@@ -329,6 +440,105 @@ pub fn parse_worksheet(input: impl AsRef<Path>) -> AOCResult<(Workflows, Vec<Par
     Ok((workflows, parts))
 }
 
+#[derive(Debug, Clone)]
+pub struct PartAttributeCombination {
+    pub cool: HashSet<i32>,
+    pub musical: HashSet<i32>,
+    pub aerodynamic: HashSet<i32>,
+    pub shiny: HashSet<i32>,
+}
+
+impl PartAttributeCombination {
+
+    pub fn get_combination_size(&self) -> i64 {
+        self.cool.len() as i64 *
+            self.musical.len() as i64 *
+            self.aerodynamic.len() as i64 *
+            self.shiny.len() as i64
+    }
+
+    // If the combination is empty.
+    pub fn is_empty(&self) -> bool {
+        // If any set is empty the whole thing is empty.
+        self.cool.is_empty() ||
+            self.musical.is_empty() ||
+            self.aerodynamic.is_empty() ||
+            self.shiny.is_empty()
+    }
+
+    pub fn new_empty() -> Self {
+        Self {
+            cool: HashSet::new(),
+            musical: HashSet::new(),
+            aerodynamic: HashSet::new(),
+            shiny: HashSet::new(),
+        }
+    }
+
+    pub fn new(min: i32, max: i32) -> Self {
+        let starting_vals: HashSet<i32> = (min ..= max).collect();
+        Self {
+            cool: starting_vals.clone(),
+            musical: starting_vals.clone(),
+            aerodynamic: starting_vals.clone(),
+            shiny: starting_vals.clone(),
+        }
+    }
+
+    pub fn with_attributes(&self, attr: &PartAttribute, vals: HashSet<i32>) -> Self {
+        use PartAttribute::*;
+
+        if vals.len() == 0 {
+            Self {
+                cool: HashSet::new(),
+                musical: HashSet::new(),
+                aerodynamic: HashSet::new(),
+                shiny: HashSet::new(),
+            }
+        }
+        else {
+            // I want to move this to a macro
+            match attr {
+                Cool => Self {
+                    cool: vals,
+                    musical: self.musical.clone(),
+                    aerodynamic: self.aerodynamic.clone(),
+                    shiny: self.shiny.clone(),
+                },
+                Musical => Self {
+                    cool: self.cool.clone(),
+                    musical: vals,
+                    aerodynamic: self.aerodynamic.clone(),
+                    shiny: self.shiny.clone(),
+                },
+                Aerodynamic => Self {
+                    cool: self.cool.clone(),
+                    musical: self.musical.clone(),
+                    aerodynamic: vals,
+                    shiny: self.shiny.clone(),
+                },
+                Shiny => Self {
+                    cool: self.cool.clone(),
+                    musical: self.musical.clone(),
+                    aerodynamic: self.aerodynamic.clone(),
+                    shiny: vals,
+                },
+            }
+        }
+    }
+
+    pub fn get<'a>(&'a self, attr: &PartAttribute) -> &'a HashSet<i32> {
+        use PartAttribute::*;
+
+        match attr {
+            Cool => &self.cool,
+            Musical => &self.musical,
+            Aerodynamic => &self.aerodynamic,
+            Shiny => &self.shiny,
+        }
+    }
+}
+
 pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
     let (workflows, parts) = parse_worksheet(input)?;
 
@@ -342,4 +552,20 @@ pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
     }
 
     Ok(total_ratings.to_string())
+}
+
+pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
+    let (workflows, _parts) = parse_worksheet(input)?;
+
+    let combinations = PartAttributeCombination::new(1, 4000);
+    let accepted_combinations = workflows.get_accepted_combinations(&combinations)?;
+
+    let mut total_combos: i64 = 0;
+
+    for accepted_combination in &accepted_combinations {
+        let size = accepted_combination.get_combination_size();
+        total_combos += size;
+    }
+
+    Ok(total_combos.to_string())
 }
