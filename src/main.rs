@@ -49,6 +49,8 @@ fn get_problems() -> Vec<Problem> {
         problem16::part2,
         problem17::part1,
         problem17::part2,
+        problem18::part1,
+        problem18::part2,
     ]
 }
 
