@@ -440,6 +440,9 @@ pub fn parse_worksheet(input: impl AsRef<Path>) -> AOCResult<(Workflows, Vec<Par
     Ok((workflows, parts))
 }
 
+// I realize now that I could have based this completely off of range specs and not
+// have to expand the whole HashSet. So it could have been 4 i32 pairs to represent
+// the combos. This is because the conditions are only greater/less than operations.
 #[derive(Debug, Clone)]
 pub struct PartAttributeCombination {
     pub cool: HashSet<i32>,
