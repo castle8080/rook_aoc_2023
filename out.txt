@@ -1,6 +1,0 @@
---------------------------------------
-Starting: problem18::part1
-Finished: problem18::part1
-Duration: 155.873 milliseconds
-Answer: 35244
-New Answer: [problem18::part1] 35244
