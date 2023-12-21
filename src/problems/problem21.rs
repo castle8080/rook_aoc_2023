@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::path::Path;
 
@@ -53,18 +53,26 @@ impl Garden {
     }
 
     pub fn find_possible_end_positions(&self, start_y: i32, start_x: i32, steps: i32) -> Vec<(i32, i32)> {
-        let explored = self.explore(start_y, start_x, steps);
+        let explored = self.explore(start_y, start_x);
+
+        let tgt_even_odd = steps % 2;
 
         explored
             .iter()
-            .filter(|(_, _, pos_steps)| *pos_steps == steps)
-            .map(|(y, x, _)| (*y, *x))
+            .filter(|((_, _, even_odd), tgt_steps)| *even_odd == tgt_even_odd && **tgt_steps <= steps)
+            .map(|((y, x, _), _)| (*y, *x))
             .collect()
     }
 
-    pub fn explore(&self, start_y: i32, start_x: i32, steps: i32) -> HashSet<(i32, i32, i32)> {
+    pub fn explore(&self, start_y: i32, start_x: i32) -> HashMap<(i32, i32, i32), i32>  {
+
+        // The visited queue has a 3rd key parameter saying if the steps where even or edd
+        // when the position was encountered. This assumes it has an adjacent so you can 
+        // figure out if you can get to that step with more steps based on going back 
+        // and forth with an adjacent position. This reduced the search nodes considerably.
+
         let mut x_queue: VecDeque<(i32, i32, i32)> = VecDeque::new();
-        let mut visited: HashSet<(i32, i32, i32)> = HashSet::new();
+        let mut visited: HashMap<(i32, i32, i32), i32> = HashMap::new();
 
         match self.get(start_y, start_x) {
             None|Some(Space::Rock) => return visited,
@@ -72,16 +80,18 @@ impl Garden {
         }
 
         x_queue.push_back((start_y, start_x, 0));
-        visited.insert((start_y, start_x, 0));
 
         while let Some((cur_y, cur_x, cur_steps)) = x_queue.pop_front() {
             for (yd, xd) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
                 let adj_y = cur_y + yd;
                 let adj_x = cur_x + xd;
                 let adj_steps = cur_steps + 1;
+                let adj_even_odd = adj_steps % 2;
+
                 match self.get(adj_y, adj_x) {
                     Some(Space::Start|Space::Plot) => {
-                        if adj_steps <= steps && visited.insert((adj_y, adj_x, adj_steps)) {
+                        if !visited.contains_key(&(adj_y, adj_x, adj_even_odd)) {
+                            visited.insert((adj_y, adj_x, adj_even_odd), adj_steps);
                             x_queue.push_back((adj_y, adj_x, adj_steps));
                         }
                     },
@@ -123,8 +133,14 @@ pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
     let garden = Garden::parse(input)?;
 
     let (start_y, start_x) = garden.find_start()?;
+    //let visited = garden.find_possible_end_positions(start_y, start_x, 64);
     let visited = garden.find_possible_end_positions(start_y, start_x, 64);
     let result = visited.len();
 
     Ok(result.to_string())
 }
+
+// for part 2
+//  1: map out from start to all edges with all step counts
+//  2: map out starting from each edge position calculate all other steps to other edges
+// I think there is still a problem with that though
