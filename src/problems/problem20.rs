@@ -18,6 +18,19 @@ lazy_static! {
     ).unwrap();
 }
 
+// greatest common divisor
+pub fn gcd(mut a: i64, mut b: i64) -> i64 {
+    while b != 0 {
+        (a, b) = (b, a % b);
+    }
+    a.abs()
+}
+
+// least common multiple
+pub fn lcm(a: i64, b: i64) -> i64 {
+    a * b / gcd(a, b)
+}
+
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum Pulse {
     Low = 0,
@@ -120,7 +133,7 @@ impl Conjunction {
             },
             _ => {}
         }
-
+    
         // Which pulse should be sent.
         let pulse_to_send =
             if self.inputs.values().all(|p| *p == Pulse::High) {
@@ -277,13 +290,83 @@ impl Modules {
         Ok(modules)
     }
 
+    fn find_rx_input(&self) -> AOCResult<Conjunction> {
+        let rx_name = String::from("rx");
+
+        for m in self.modules.values() {
+            if m.get_destinations().contains(&rx_name) {
+                match m {
+                    Module::ConjunctionType(c) => {
+                        return Ok(c.clone());
+                    },
+                    _ => {}
+                }
+            }
+        }
+
+        Err(AOCError::ProcessingError(format!("Not able to find the expected input type.")))
+    }
+
+    pub fn find_button_pushes_into_rx_single_low(&mut self) -> AOCResult<i64> {
+
+        // This is such a hack and works based on some assumptions about the data.
+        // Assumption 1: the input to rx is a Conjunction node.
+        // Assumption 2: there is a pattern to the cycles of each input coming into
+        //                the conjunction node. We can use these cycles to figure out
+        //                when they match.
+
+
+        // Start by finding the input to rx and creating a map of the rx inputs inputs.
+        // When all the hash maps have found the first high.
+        let rx_input = self.find_rx_input()?;
+
+        let mut input_trigger_counts: HashMap<String, Option<i32>> = HashMap::new();
+
+        for conjunction_input_name in rx_input.inputs.keys() {
+            input_trigger_counts.insert(conjunction_input_name.clone(), None);
+        }
+
+        // Keep trigging the button until we see all the highs for the rx inputs inputs.
+        let broadcaster = String::from("broadcaster");
+        let mut button_push_count = 0;
+
+        while input_trigger_counts.values().any(|c| c.is_none()) {
+            button_push_count += 1;
+
+            // Send the button push through and see if Highs are hit for the conjunction.
+            self.send_pulse(broadcaster.clone(), Pulse::Low, &mut |_source, _dst, dst_module, _pulse| {
+                match dst_module {
+                    Some(Module::ConjunctionType(dst_module)) => {
+                        if dst_module.name == rx_input.name {
+                            for (input_name, last_pulse) in &dst_module.inputs {
+                                if last_pulse == &Pulse::High {
+                                    input_trigger_counts.insert(input_name.clone(), Some(button_push_count));
+                                }
+                            }
+                        }
+                    },
+                    _ => {}
+                }
+            })?;
+        }
+
+        let common_cycle = input_trigger_counts
+            .values()
+            .filter_map(|x| *x)
+            .map(|x| x as i64)
+            .reduce(|a, b| lcm(a, b))
+            .ok_or_else(|| AOCError::ProcessingError("Couldn't calculate cycle".into()))?;
+
+        return Ok(common_cycle);
+    }
+
     pub fn push_button(&mut self, n: i32)-> AOCResult<(i32, i32)> {
         let broadcaster = String::from("broadcaster");
         let mut high_pulse_count = 0;
         let mut low_pulse_count = 0;
 
         for _push_count in 0 .. n {
-            self.send_pulse(broadcaster.clone(), Pulse::Low, &mut |_source, _destination, pulse| {
+            self.send_pulse(broadcaster.clone(), Pulse::Low, &mut |_source, _destination, _destination_module, pulse| {
                 match pulse {
                     Pulse::High => high_pulse_count += 1,
                     Pulse::Low => low_pulse_count += 1,
@@ -295,7 +378,7 @@ impl Modules {
     }
 
     pub fn send_pulse<F>(&mut self, name: String, pulse: Pulse, on_pulse: &mut F) -> AOCResult<()>
-        where F: FnMut(&String, &String, Pulse) -> ()
+        where F: FnMut(&String, &String, Option<&Module>, Pulse) -> ()
     {
         let initial = String::from("button");
 
@@ -303,22 +386,21 @@ impl Modules {
         pulses_to_send.push_back((initial, name, pulse));
 
         while let Some((source, destination, pulse)) = pulses_to_send.pop_front() {
-            on_pulse(&source, &destination, pulse);
-
             match self.modules.get_mut(&destination) {
                 None => {
                     // missing module is a sink
+                    on_pulse(&source, &destination, None, pulse);
                 },
                 Some(m) => {
                     m.send_pulse(&source, pulse, &mut |trigger, trigger_pulse| {
                         pulses_to_send.push_back((destination.clone(), trigger.clone(), trigger_pulse))
                     });
+                    on_pulse(&source, &destination, Some(m), pulse);
                 }
             }
         }
         Ok(())
     }
-
 }
 
 pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
@@ -326,6 +408,12 @@ pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
     let (high_pulse_count, low_pulse_count) = modules.push_button(1000)?;
 
     let result = high_pulse_count * low_pulse_count;
-
     Ok(result.to_string())
 }
+
+pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
+    let mut modules = Modules::parse(input)?;
+    let result = modules.find_button_pushes_into_rx_single_low()?;
+    Ok(result.to_string())
+}
+
