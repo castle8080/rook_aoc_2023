@@ -2,6 +2,7 @@ mod problems;
 mod aocbase;
 mod aocio;
 mod regex_ext;
+mod mathx;
 
 #[macro_use]
 mod run;

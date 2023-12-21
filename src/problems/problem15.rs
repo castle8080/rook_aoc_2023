@@ -7,6 +7,8 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::aocbase::{AOCResult, AOCError};
+use crate::regex_ext::CapturesExt;
+use crate::regex_ext::RegexExt;
 
 lazy_static! {
     static ref STEP_REGEX: Regex = Regex::new(r"^([A-Za-z]+)(=(\d+)|(-))$").unwrap();
@@ -34,13 +36,9 @@ impl InitializationStep {
     }
 
     pub fn parse(s: impl AsRef<str>) -> AOCResult<Self> {
-        let cap = STEP_REGEX
-            .captures(s.as_ref())
-            .ok_or_else(|| AOCError::ParseError(format!("Invalid step: {}", s.as_ref())))?;
+        let cap = STEP_REGEX.captures_must(s.as_ref())?;
 
-        let text = cap.get(1)
-            .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid capture group(1)".into()))?
-            .as_str();
+        let text = cap.get_group(1)?;
 
         if let Some(m) = cap.get(3) {
             return Ok(InitializationStep {

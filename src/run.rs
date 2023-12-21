@@ -6,6 +6,9 @@ use std::fs::create_dir_all;
 use std::time::{Instant, Duration};
 use regex::Regex;
 
+use crate::regex_ext::CapturesExt;
+use crate::regex_ext::RegexExt;
+
 pub struct Problem {
     pub name: String,
     pub runner: Box<dyn Fn(&String) -> AOCResult<String>>,
@@ -122,7 +125,6 @@ impl Problem {
             duration,
             result
         }
-        //println!("Elapsed Time: {} milliseconds.", duration.as_micros() as f32 / 1000.0);
     }
 
     pub fn get_default_input(&self) -> AOCResult<String> {
@@ -133,11 +135,8 @@ impl Problem {
 
 pub fn parse_number(name: impl AsRef<str>) -> AOCResult<i32> {
     Ok(Regex::new(r"(\d+)")?
-        .captures(name.as_ref())
-        .ok_or_else(|| AOCError::ParseError("Name has no number.".into()))?
-        .get(1)
-        .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid group".into()))?
-        .as_str()
+        .captures_must(name.as_ref())?
+        .get_group(1)?
         .parse::<i32>()?)
 }
 

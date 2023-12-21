@@ -5,6 +5,8 @@ use regex::Regex;
 
 use crate::aocbase::{AOCError, AOCResult};
 use crate::aocio::each_line;
+use crate::regex_ext::CapturesExt;
+use crate::regex_ext::RegexExt;
 
 lazy_static! {
     static ref GAME_REGEX: Regex = Regex::new(r"^Game (\d+): (.*)").unwrap();
@@ -34,19 +36,13 @@ impl CubeCounts {
         for c_count_str in input.split(',') {
 
             let c_count_cap = COLOR_COUNT_REGEX
-                .captures(c_count_str)
-                .ok_or_else(|| AOCError::ParseError(format!("Invalid color count: {}", c_count_str)))?;
+                .captures_must(c_count_str)?;
 
             let c_count = c_count_cap
-                .get(1)
-                .ok_or_else(|| AOCError::InvalidRegexOperation("incorrect capture".into()))?
-                .as_str()
+                .get_group(1)?
                 .parse::<i32>()?;
 
-            let color = c_count_cap
-                .get(2)
-                .ok_or_else(|| AOCError::InvalidRegexOperation("incorrect capture".into()))?
-                .as_str();
+            let color = c_count_cap.get_group(2)?;
 
             match color {
                 "red" => cube_counts.red = c_count,
@@ -86,20 +82,14 @@ impl CubeCountGame {
     }
 
     pub fn parse(input: impl AsRef<str>) -> AOCResult<CubeCountGame> {
-        let game_cap = GAME_REGEX
-            .captures(input.as_ref())
-            .ok_or_else(|| AOCError::ParseError(format!("Invalid game: {}", input.as_ref())))?;
+        let game_cap = GAME_REGEX.captures_must(input.as_ref())?;
 
         let id = game_cap
-            .get(1)
-            .ok_or_else(|| AOCError::InvalidRegexOperation("incorect capture".into()))?
-            .as_str()
+            .get_group(1)?
             .parse::<i32>()?;
         
         let count_sets = game_cap
-            .get(2)
-            .ok_or_else(|| AOCError::InvalidRegexOperation("incorect capture".into()))?
-            .as_str()
+            .get_group(2)?
             .split(';')
             .into_iter()
             .map(CubeCounts::parse)

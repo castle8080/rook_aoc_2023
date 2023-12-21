@@ -9,6 +9,8 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::aocbase::{AOCResult, AOCError};
+use crate::regex_ext::CapturesExt;
+use crate::regex_ext::RegexExt;
 
 lazy_static! {
     static ref WORKFLOW_REGEX: Regex = Regex::new(
@@ -84,11 +86,8 @@ impl Part {
         let line = line.as_ref();
 
         let attr_parts = PART_REGEX
-            .captures(line)
-            .ok_or_else(|| AOCError::ParseError(format!("Invalid part: {}", line)))?
-            .get(1)
-            .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid regex capture(1)".into()))?
-            .as_str()
+            .captures_must(line)?
+            .get_group(1)?
             .split(',');
 
         let mut attrs: HashMap<PartAttribute, i32> = HashMap::new();
@@ -199,9 +198,7 @@ impl WorkflowStep {
     pub fn parse(text: impl AsRef<str>) -> AOCResult<Self> {
         let text = text.as_ref();
 
-        let cap = STEP_REGEX
-            .captures(text)
-            .ok_or_else(|| AOCError::ParseError(format!("Invalid workflow step: {}", text)))?;
+        let cap = STEP_REGEX.captures_must(text)?;
 
         // Parse the condition
         let condition =
@@ -213,16 +210,8 @@ impl WorkflowStep {
                     .nth(0).unwrap()
                 )?;
 
-                let operation = cap
-                    .get(3)
-                    .ok_or_else(|| AOCError::ParseError("Invalid capture group(3)".into()))?
-                    .as_str();
-
-                let op_num = cap
-                    .get(4)
-                    .ok_or_else(|| AOCError::ParseError("Invalid capture group(4)".into()))?
-                    .as_str()
-                    .parse::<i32>()?;
+                let operation = cap.get_group(3)?;
+                let op_num = cap.get_group(4)?.parse::<i32>()?;
 
                 match operation {
                     "<" => WorkflowStepCondition::LessThan(part_attribute, op_num),
@@ -235,10 +224,7 @@ impl WorkflowStep {
             };
 
         // Get the target
-        let target = cap
-            .get(5)
-            .ok_or_else(|| AOCError::ParseError("Invalid capture group(5)".into()))?
-            .as_str();
+        let target = cap.get_group(5)?;
 
         let result = match target {
             "A" => WorkflowResult::Accept,
@@ -311,16 +297,10 @@ impl Workflow {
             .captures(line)
             .ok_or_else(|| AOCError::ParseError(format!("Invalid workflow line: {}", line)))?;
 
-        let name = cap
-            .get(1)
-            .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid capture group (1)".into()))?
-            .as_str()
-            .to_string();
+        let name = cap.get_group(1)?.to_string();
 
         let steps = cap
-            .get(2)
-            .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid capture group (2)".into()))?
-            .as_str()
+            .get_group(2)?
             .split(',')
             .map(WorkflowStep::parse)
             .collect::<AOCResult<Vec<WorkflowStep>>>()?;

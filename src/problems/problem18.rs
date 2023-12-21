@@ -10,6 +10,8 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::aocbase::{AOCResult, AOCError};
+use crate::regex_ext::CapturesExt;
+use crate::regex_ext::RegexExt;
 
 lazy_static! {
     static ref DIG_OPERATION_REGEX: Regex = Regex::new(
@@ -90,29 +92,16 @@ impl DigOperation {
     pub fn parse(line: impl AsRef<str>) -> AOCResult<DigOperation> {
         let line = line.as_ref();
 
-        let cap = DIG_OPERATION_REGEX
-            .captures(line)
-            .ok_or_else(|| AOCError::ParseError(format!("Invalid dig operation: {}", line)))?;
+        let cap = DIG_OPERATION_REGEX.captures_must(line)?;
 
         let direction: Direction = cap
-            .get(1)
-            .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid capture group (1)".into()))?
-            .as_str()
+            .get_group(1)?
             .chars()
             .nth(0).unwrap()
             .try_into()?;
 
-        let amount = cap
-            .get(2)
-            .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid capture group (2)".into()))?
-            .as_str()
-            .parse::<i32>()?;
-
-        let color = cap
-            .get(3)
-            .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid capture group (3)".into()))?
-            .as_str()
-            .to_string();
+        let amount = cap.get_group(2)?.parse::<i32>()?;
+        let color = cap.get_group(3)?.to_string();
 
         Ok(DigOperation { direction, amount, color })
     }

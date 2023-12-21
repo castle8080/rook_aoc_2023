@@ -6,8 +6,9 @@ use std::path::Path;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use crate::aocbase::{AOCError, AOCResult};
+use crate::aocbase::AOCResult;
 use crate::aocio::each_line;
+use crate::regex_ext::{RegexExt, CapturesExt};
 
 lazy_static! {
     static ref CARD_REGEX: Regex = Regex::new(r"Card +(\d+):([ \d]*)\|([ \d]*)").unwrap();
@@ -35,27 +36,11 @@ impl GameCard {
     pub fn parse(line: impl AsRef<str>) -> AOCResult<GameCard> {
         let line = line.as_ref();
 
-        let cap = CARD_REGEX
-            .captures(line)
-            .ok_or_else(|| AOCError::ParseError(format!("Invalid game: {}", line)))?;
+        let cap = CARD_REGEX.captures_must(line)?;
 
-        let id = cap
-            .get(1)
-            .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid capture group".into()))?
-            .as_str()
-            .parse::<i32>()?;
-
-        let winning_numbers: HashSet<i32> = Self::to_hashset(cap
-            .get(2)
-            .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid capture group".into()))?
-            .as_str()
-        )?;
-
-        let numbers: HashSet<i32> = Self::to_hashset(cap
-            .get(3)
-            .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid capture group".into()))?
-            .as_str()
-        )?;
+        let id = cap.get_group(1)?.parse::<i32>()?;
+        let winning_numbers: HashSet<i32> = Self::to_hashset(cap.get_group(2)?)?;
+        let numbers: HashSet<i32> = Self::to_hashset(cap.get_group(3)?)?;
 
         Ok(GameCard { id, winning_numbers, numbers })
     }

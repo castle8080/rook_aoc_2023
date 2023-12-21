@@ -8,6 +8,7 @@ use regex::Regex;
 
 use crate::aocbase::{AOCError, AOCResult};
 use crate::aocio::each_line;
+use crate::regex_ext::CapturesExt;
 
 lazy_static! {
     static ref SEEDS_REGEX: Regex = Regex::new(r"^seeds: (.*)").unwrap();
@@ -388,23 +389,14 @@ impl HorticulturePlan {
             else if let Some(seeds_cap) = SEEDS_REGEX.captures(line) {
                 // Check for seeds line
                 plan.seeds = seeds_cap
-                    .get(1)
-                    .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid regex capture.".into()))?
-                    .as_str()
+                    .get_group(1)?
                     .split_ascii_whitespace()
                     .map(|s| s.parse::<i64>())
                     .collect::<Result<Vec<i64>, ParseIntError>>()?;
             }
             else if let Some(map_start_cap) = MAP_START_REGEX.captures(line) {
-                let source_type = map_start_cap
-                    .get(1)
-                    .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid regex capture.".into()))?
-                    .as_str();
-
-                let destination_type = map_start_cap
-                    .get(2)
-                    .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid regex capture.".into()))?
-                    .as_str();
+                let source_type = map_start_cap.get_group(1)?;
+                let destination_type = map_start_cap.get_group(2)?;
 
                 maps.push(HorticultureMap::new(source_type, destination_type));
             }

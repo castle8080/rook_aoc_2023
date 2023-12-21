@@ -7,6 +7,7 @@ use regex::Regex;
 
 use crate::aocbase::{AOCError, AOCResult};
 use crate::aocio::each_line;
+use crate::regex_ext::CapturesExt;
 
 lazy_static! {
     static ref COMMAND_REGEX: Regex = Regex::new(r"^\s*([RL]+)\s*$").unwrap();
@@ -124,9 +125,7 @@ impl Network {
         each_line(input, |line| {
             if let Some(command_cap)  = COMMAND_REGEX.captures(line) {
                 let commands = command_cap
-                    .get(1)
-                    .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid capture".into()))?
-                    .as_str()
+                    .get_group(1)?
                     .chars()
                     .map(Command::parse)
                     .collect::<AOCResult<Vec<Command>>>()?;
@@ -135,21 +134,15 @@ impl Network {
             }
             else if let Some(node_cap) = NODE_REGEX.captures(line) {
                 let id = node_cap
-                    .get(1)
-                    .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid capture".into()))?
-                    .as_str()
+                    .get_group(1)?
                     .to_string();
 
                 let left = node_cap
-                    .get(2)
-                    .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid capture".into()))?
-                    .as_str()
+                    .get_group(2)?
                     .to_string();
 
                 let right = node_cap
-                    .get(3)
-                    .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid capture".into()))?
-                    .as_str()
+                    .get_group(3)?
                     .to_string();
 
                 network.add_node(Node { id, left, right })

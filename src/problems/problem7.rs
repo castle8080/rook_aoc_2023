@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use crate::aocbase::{AOCError, AOCResult};
 use crate::aocio::each_line;
+use crate::regex_ext::{RegexExt, CapturesExt};
 
 use regex::Regex;
 use lazy_static::lazy_static;
@@ -159,27 +160,19 @@ impl Hand {
     }
 
     pub fn parse(line: impl AsRef<str>, joker_type: Option<Card>) -> AOCResult<Hand> {
-        let hand_cap = HAND_REGEX
-            .captures(line.as_ref())
-            .ok_or_else(|| AOCError::ParseError(format!("Invalid hand: {}", line.as_ref())))?;
+        let hand_cap = HAND_REGEX.captures_must(line.as_ref())?;
 
         let mut cards = hand_cap
-            .get(1)
-            .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid group".into()))?
-            .as_str()
+            .get_group(1)?
             .chars()
             .map(Card::from_char)
             .collect::<AOCResult<Vec<Card>>>()?;
 
         if cards.len() != 5 {
-            return Err(AOCError::InvalidRegexOperation(format!("Invalid card count: {}", cards.len())))
+            return Err(AOCError::ParseError(format!("Invalid card count: {}", cards.len())))
         }
 
-        let bid = hand_cap
-            .get(2)
-            .ok_or_else(|| AOCError::InvalidRegexOperation("Invalid group".into()))?
-            .as_str()
-            .parse::<i32>()?;
+        let bid = hand_cap.get_group(2)?.parse::<i32>()?;
 
         // Change normal card to joker?
         if let Some(joker_type) = joker_type {
