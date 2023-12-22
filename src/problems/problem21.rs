@@ -327,11 +327,13 @@ impl<'a> InfiniteGardenPathSolver<'a> {
         }
 
         // 4. Full boxes in a quadrant
-        //    The work was mostly done and just need to add up.
 
         let mut full_box_quadrant_total: i128 = 0;
 
         // Yes there is math I could probably do to avoid this loop.
+        // If you draw out these they look like a square and you
+        // know how many even odd to add based on the diagonal
+        // which should use the smame amount either base or alt.
         for n in (1 ..= box_dist - 2).rev() {
             if n % 2 == 1 {
                 full_box_quadrant_total += base_count * (n as i128);
@@ -349,7 +351,6 @@ impl<'a> InfiniteGardenPathSolver<'a> {
         }
 
         // 5. Diagonals
-        //    There should be N pairs of them
 
         let box_short_count = box_dist as i128;
         let box_long_count = (box_dist - 1) as i128;
