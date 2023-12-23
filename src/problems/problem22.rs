@@ -418,7 +418,6 @@ pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
         pieces_new.disintegrate(piece.id);
         let lower_count = pieces_new.lower();
         total_affect_count += lower_count;
-
     }
 
     Ok(total_affect_count.to_string())
