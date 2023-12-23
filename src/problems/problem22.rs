@@ -134,7 +134,7 @@ pub const GROUND_ID: i32 = -2;
 
 #[derive(Debug, Clone)]
 pub struct Pieces {
-    pub pieces: Vec<Piece>,
+    pub pieces: HashMap<i32, Piece>,
 
     // Represents the 3-d space with the value being the piece id.
     space_matrix: Vec<Vec<Vec<i32>>>,
@@ -143,7 +143,13 @@ pub struct Pieces {
 impl Pieces {
 
     pub fn new(pieces: Vec<Piece>) -> AOCResult<Self> {
-        let mut _self = Self { pieces, space_matrix: Vec::new() };
+
+        let mut _pieces: HashMap<i32, Piece> = HashMap::new();
+        for p in pieces {
+            _pieces.insert(p.id, p);
+        }
+
+        let mut _self = Self { pieces: _pieces, space_matrix: Vec::new() };
         _self.intialize_space_matrix()?;
         Ok(_self)
     }
@@ -151,19 +157,19 @@ impl Pieces {
     fn intialize_space_matrix(&mut self) -> AOCResult<()> {
 
         let max_z = self.pieces
-            .iter()
+            .values()
             .flat_map(|p| vec![p.start.z, p.end.z])
             .max()
             .ok_or_else(|| AOCError::ProcessingError(format!("Invalid pieces.")))?;
 
         let max_y = self.pieces
-            .iter()
+            .values()
             .flat_map(|p| vec![p.start.y, p.end.y])
             .max()
             .ok_or_else(|| AOCError::ProcessingError(format!("Invalid pieces.")))?;
 
         let max_x = self.pieces
-            .iter()
+            .values()
             .flat_map(|p| vec![p.start.x, p.end.x])
             .max()
             .ok_or_else(|| AOCError::ProcessingError(format!("Invalid pieces.")))?;
@@ -183,7 +189,7 @@ impl Pieces {
 
         let space_matrix = &mut self.space_matrix;
 
-        for piece in &self.pieces {
+        for piece in self.pieces.values() {
             for pos in piece.position_iter() {
                 if space_matrix[pos.y as usize][pos.x as usize][pos.z as usize] != EMPTY_PIECE_ID {
                     return Err(AOCError::ProcessingError(format!("Too many things in a space.")));
@@ -195,6 +201,14 @@ impl Pieces {
         }
 
         Ok(())
+    }
+
+    pub fn disintegrate(&mut self, piece_id: i32) {
+        if let Some(p) = self.pieces.remove(&piece_id) {
+            for pos in p.position_iter() {
+                self.space_matrix[pos.y as usize][pos.x as usize][pos.z as usize] = EMPTY_PIECE_ID;
+            }
+        }
     }
 
     // Utility for inspecting the space matrix
@@ -225,14 +239,13 @@ impl Pieces {
         output
     }
 
-
-    pub fn get_disentegratable(&self) -> Vec<i32> {
+    pub fn get_disintegratable(&self) -> Vec<i32> {
         let held_by = self.get_held_by();
 
-        let mut distentigratable: Vec<i32> = Vec::new();
+        let mut disintegratable: Vec<i32> = Vec::new();
 
         // See if any are not solely supporting
-        for p in &self.pieces {
+        for p in self.pieces.values() {
             let mut support_count = 0;
 
             for (_, supporting_ids) in &held_by {
@@ -244,11 +257,11 @@ impl Pieces {
             }
 
             if support_count == 0 {
-                distentigratable.push(p.id);
+                disintegratable.push(p.id);
             }
         }
 
-        distentigratable
+        disintegratable
     }
     
     fn add_held_by(held_by: &mut HashMap<i32, HashSet<i32>>, id: i32, held_by_id: i32) {
@@ -303,35 +316,31 @@ impl Pieces {
         held_by
     }
 
-    pub fn lower(&mut self) {
-        // The loop should not really be nescesary due to ordering of pieces being lowered.
-        loop {
-            let mut potential_lowerable_pieces = self
-                .pieces
-                .iter()
-                .filter(|p| p.get_low_z() > 1)
-                .map(|p| (p.get_low_z(), p.id))
-                .collect::<Vec<(i32, i32)>>();
+    pub fn lower(&mut self) -> i32 {
+        let mut potential_lowerable_pieces = self
+            .pieces
+            .values()
+            .filter(|p| p.get_low_z() > 1)
+            .map(|p| (p.get_low_z(), p.id))
+            .collect::<Vec<(i32, i32)>>();
 
-            potential_lowerable_pieces
-                .sort_by_key(|(low_z, _p_id)| *low_z);
+        potential_lowerable_pieces
+            .sort_by_key(|(low_z, _p_id)| *low_z);
 
-            let mut lower_count = 0;
+        let mut lower_count = 0;
 
-            for (_, id) in &potential_lowerable_pieces {
-                if self.lower_piece(*id) {
-                    lower_count += 1;
-                }
-            }
-
-            if lower_count == 0 {
-                break;
+        for (_, id) in &potential_lowerable_pieces {
+            if self.lower_piece(*id) {
+                lower_count += 1;
             }
         }
+
+        return lower_count;
     }
 
     fn lower_piece(&mut self, piece_id: i32) -> bool {
-        let p = &self.pieces[(piece_id - 1) as usize];
+        let p = self.pieces.get(&piece_id).unwrap();
+
         let yx_lows = p.get_yx_lows();
 
         let mut z_deltas: Vec<i32> = Vec::new();
@@ -372,7 +381,7 @@ impl Pieces {
             return;
         }
 
-        let p = &mut self.pieces[(piece_id - 1) as usize];
+        let p = &mut self.pieces.get_mut(&piece_id).unwrap();
 
         // Move the space ids in the space matrix first
         for pos in p.position_iter() {
@@ -416,8 +425,25 @@ pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
     let mut pieces = Pieces::parse(input)?;
     pieces.lower();
 
-    let disentegratable = pieces.get_disentegratable();
+    let disentegratable = pieces.get_disintegratable();
     let result = disentegratable.len();
 
     Ok(result.to_string())
+}
+
+pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
+    let mut pieces = Pieces::parse(input)?;
+    pieces.lower();
+
+    let mut total_affect_count: i32 = 0;
+
+    for piece in pieces.pieces.values() {
+        let mut pieces_new = pieces.clone();
+        pieces_new.disintegrate(piece.id);
+        let lower_count = pieces_new.lower();
+        total_affect_count += lower_count;
+
+    }
+
+    Ok(total_affect_count.to_string())
 }
