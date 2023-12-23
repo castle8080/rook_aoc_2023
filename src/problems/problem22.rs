@@ -263,26 +263,6 @@ impl Pieces {
 
         disintegratable
     }
-    
-    fn add_held_by(held_by: &mut HashMap<i32, HashSet<i32>>, id: i32, held_by_id: i32) {
-        match held_by.get_mut(&id) {
-            Some(held_set) => {
-                // You aren't really held if you are on the ground.
-                if held_by_id == GROUND_ID {
-                    held_set.clear();
-                    held_set.insert(held_by_id);
-                }
-                else if !held_set.contains(&GROUND_ID) {
-                    held_set.insert(held_by_id);
-                }
-            },
-            None => {
-                let mut held_set: HashSet<i32> = HashSet::new();
-                held_set.insert(held_by_id);
-                held_by.insert(id, held_set);
-            }
-        }
-    }
 
     fn get_held_by(&self) -> HashMap<i32, HashSet<i32>> {
         // Start by building up maps to know for each piece what is holding it up.
@@ -290,27 +270,23 @@ impl Pieces {
 
         let mut held_by: HashMap<i32, HashSet<i32>> = HashMap::new();
 
-        for y in 0 .. self.space_matrix.len() {
-            for x in 0 .. self.space_matrix[0].len() {
-                let z_col = &self.space_matrix[y as usize][x as usize];
+        for p in self.pieces.values() {
+            let mut p_held_by: HashSet<i32> = HashSet::new();
 
-                for z in 1 .. z_col.len() - 1 {
-                    let lower_p_id = z_col[z];
-                    let upper_p_id = z_col[z + 1];
-
-                    // Mark if something is held by the ground
-                    if lower_p_id == 1 {
-                        Self::add_held_by(&mut held_by, lower_p_id, GROUND_ID);
-                    }
-
-                    // Add record of items holding something up.
-                    if lower_p_id != EMPTY_PIECE_ID && upper_p_id != EMPTY_PIECE_ID &&
-                        lower_p_id != upper_p_id
-                    {
-                        Self::add_held_by(&mut held_by, upper_p_id, lower_p_id);
+            for pos in p.position_iter() {
+                if pos.z == 1 {
+                    p_held_by.clear();
+                    p_held_by.insert(GROUND_ID);
+                }
+                else {
+                    let other_id = self.space_matrix[pos.y as usize][pos.x as usize][(pos.z - 1) as usize];
+                    if other_id != p.id && other_id != EMPTY_PIECE_ID {
+                        p_held_by.insert(other_id);
                     }
                 }
             }
+
+            held_by.insert(p.id, p_held_by);
         }
 
         held_by
