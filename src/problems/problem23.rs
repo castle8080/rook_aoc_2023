@@ -80,57 +80,43 @@ impl HikingTrail {
         None
     }
 
-    fn get_next_nodes(&self, (y, x): &(i32, i32), visited: &HashSet<(i32, i32)>) -> Vec<(i32, i32)> {
-        let mut next_nodes: Vec<(i32, i32)> = Vec::new();
-
-        let mut try_add = |y: i32, x: i32| {
-            if !visited.contains(&(y, x)) {
-                next_nodes.push((y, x));
-            }
-        };
-
-        match self.get(*y, *x) {
-            Some(LocationType::SlopeUp) => {
-                try_add(y - 1, *x);
-            },
-            Some(LocationType::SlopeDown) => {
-                try_add(y + 1, *x);
-            },
-            Some(LocationType::SlopeLeft) => {
-                try_add(*y, x - 1);
-            },
-            Some(LocationType::SlopeRight) => {
-                try_add(*y, x + 1);
-            },
-
-            Some(LocationType::Path) => {
-                // Look for next nodes
-                for (yd, xd) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
-                    let ny = y + yd;
-                    let nx = x + xd;
-
-                    match self.get(ny, nx) {
-                        Some(LocationType::Forest) => {},
-                        None => {},
-                        _ => {
-                            try_add(ny, nx);
-                        }
-                    }
-
-                }
-            },
-            _ => {}
-        }
-
-        next_nodes
+    pub fn get_start(&self) -> AOCResult<(i32, i32)> {
+        self.map[0]
+            .iter()
+            .enumerate()
+            .find(|(_, lt)| **lt == LocationType::Path)
+            .map(|(i, _)| (0, i as i32))
+            .ok_or_else(|| AOCError::ProcessingError(format!("Couldn't find start.")))
     }
 
-    pub fn search_longest(&self, start: &(i32, i32), end: &(i32, i32)) -> AOCResult<Vec<(i32, i32)>> {
+    pub fn get_end(&self) -> AOCResult<(i32, i32)> {
+        self.map[self.map.len() - 1]
+            .iter()
+            .enumerate()
+            .find(|(_, lt)| **lt == LocationType::Path)
+            .map(|(i, _)| ((self.map.len() - 1) as i32, i as i32))
+            .ok_or_else(|| AOCError::ProcessingError(format!("Couldn't find end.")))
+    }
+}
+
+pub struct LongestPathSolverBrute<'a> {
+    pub trail: &'a HikingTrail,
+    pub start: (i32, i32),
+    pub end: (i32, i32),
+}
+
+impl<'a> LongestPathSolverBrute<'a> {
+
+    pub fn new(trail: &'a HikingTrail, start: (i32, i32), end: (i32, i32)) -> Self {
+        Self { trail, start, end }
+    }
+
+    pub fn search(&self) -> AOCResult<Vec<(i32, i32)>> {
         let mut path_stack: Vec<Vec<(i32, i32)>> = Vec::new();
         let mut visited: HashSet<(i32, i32)> = HashSet::new();
 
-        visited.insert(start.clone());
-        path_stack.push(vec![start.clone()]);
+        visited.insert(self.start.clone());
+        path_stack.push(vec![self.start.clone()]);
 
         let mut end_path: Option<Vec<(i32, i32)>> = None;
 
@@ -142,7 +128,7 @@ impl HikingTrail {
 
             let mut unwind = true;
 
-            if last_node == end {
+            if *last_node == self.end {
                 let last_max = match &end_path {
                     Some(ep) => ep.len() as i32,
                     None => 0,
@@ -180,22 +166,49 @@ impl HikingTrail {
         end_path.ok_or_else(|| AOCError::ProcessingError("Could not find path.".into()))
     }
 
-    pub fn get_start(&self) -> AOCResult<(i32, i32)> {
-        self.map[0]
-            .iter()
-            .enumerate()
-            .find(|(_, lt)| **lt == LocationType::Path)
-            .map(|(i, _)| (0, i as i32))
-            .ok_or_else(|| AOCError::ProcessingError(format!("Couldn't find start.")))
-    }
+    fn get_next_nodes(&self, (y, x): &(i32, i32), visited: &HashSet<(i32, i32)>) -> Vec<(i32, i32)> {
+        let mut next_nodes: Vec<(i32, i32)> = Vec::new();
 
-    pub fn get_end(&self) -> AOCResult<(i32, i32)> {
-        self.map[self.map.len() - 1]
-            .iter()
-            .enumerate()
-            .find(|(_, lt)| **lt == LocationType::Path)
-            .map(|(i, _)| ((self.map.len() - 1) as i32, i as i32))
-            .ok_or_else(|| AOCError::ProcessingError(format!("Couldn't find end.")))
+        let mut try_add = |y: i32, x: i32| {
+            if !visited.contains(&(y, x)) {
+                next_nodes.push((y, x));
+            }
+        };
+
+        match self.trail.get(*y, *x) {
+            Some(LocationType::SlopeUp) => {
+                try_add(y - 1, *x);
+            },
+            Some(LocationType::SlopeDown) => {
+                try_add(y + 1, *x);
+            },
+            Some(LocationType::SlopeLeft) => {
+                try_add(*y, x - 1);
+            },
+            Some(LocationType::SlopeRight) => {
+                try_add(*y, x + 1);
+            },
+
+            Some(LocationType::Path) => {
+                // Look for next nodes
+                for (yd, xd) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                    let ny = y + yd;
+                    let nx = x + xd;
+
+                    match self.trail.get(ny, nx) {
+                        Some(LocationType::Forest) => {},
+                        None => {},
+                        _ => {
+                            try_add(ny, nx);
+                        }
+                    }
+
+                }
+            },
+            _ => {}
+        }
+
+        next_nodes
     }
 }
 
@@ -205,7 +218,8 @@ pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
     let start = trail.get_start()?;
     let end = trail.get_end()?;
 
-    let end_path = trail.search_longest(&start, &end)?;
+    let lp_solver = LongestPathSolverBrute::new(&trail, start.clone(), end.clone());
+    let end_path = lp_solver.search()?;
 
     // Subtract 1 to account for starting position
     let result = end_path.len() - 1;
@@ -221,7 +235,8 @@ pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
     let start = trail.get_start()?;
     let end = trail.get_end()?;
 
-    let end_path = trail.search_longest(&start, &end)?;
+    let lp_solver = LongestPathSolverBrute::new(&trail, start.clone(), end.clone());
+    let end_path = lp_solver.search()?;
 
     // Subtract 1 to account for starting position
     let result = end_path.len() - 1;
