@@ -1,7 +1,7 @@
 
 use thiserror::Error;
 
-use std::num::{ParseIntError, TryFromIntError};
+use std::num::{ParseIntError, TryFromIntError, ParseFloatError};
 use std::io;
 use std::string::FromUtf8Error;
 
@@ -26,6 +26,12 @@ pub type AOCResult<T> = Result<T, AOCError>;
 
 impl From<ParseIntError> for AOCError {
     fn from(value: ParseIntError) -> Self {
+        Self::ParseError(format!("{value}"))
+    }
+}
+
+impl From<ParseFloatError> for AOCError {
+    fn from(value: ParseFloatError) -> Self {
         Self::ParseError(format!("{value}"))
     }
 }
