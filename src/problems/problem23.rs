@@ -139,119 +139,6 @@ impl HikingTrail {
     }
 }
 
-pub struct LongestPathSolverBrute<'a> {
-    pub trail: &'a HikingTrail,
-    pub start: (i32, i32),
-    pub end: (i32, i32),
-}
-
-impl<'a> LongestPathSolverBrute<'a> {
-
-    pub fn new(trail: &'a HikingTrail, start: (i32, i32), end: (i32, i32)) -> Self {
-        Self { trail, start, end }
-    }
-
-    pub fn search(&self) -> AOCResult<Vec<(i32, i32)>> {
-        let mut path_stack: Vec<Vec<(i32, i32)>> = Vec::new();
-        let mut visited: HashSet<(i32, i32)> = HashSet::new();
-
-        visited.insert(self.start.clone());
-        path_stack.push(vec![self.start.clone()]);
-
-        let mut end_path: Option<Vec<(i32, i32)>> = None;
-
-        while !path_stack.is_empty() {
-            let last_path = &path_stack[path_stack.len() - 1];
-            let last_node = &last_path[last_path.len() - 1];
-
-            visited.insert(*last_node);
-
-            let mut unwind = true;
-
-            if *last_node == self.end {
-                let last_max = match &end_path {
-                    Some(ep) => ep.len() as i32,
-                    None => 0,
-                };
-                if path_stack.len() as i32 > last_max {
-
-                    let mut _end_path: Vec<(i32, i32)> = Vec::new();
-                    for step in &path_stack {
-                        _end_path.push(step[step.len() - 1]);
-                    }
-                    end_path = Some(_end_path);
-                }
-            }
-            else {
-                let next_nodes = self.get_next_nodes(&last_node, &visited);
-                if next_nodes.len() > 0 {  
-                    unwind = false;
-                    path_stack.push(next_nodes);
-                }
-            }
-
-            if unwind {
-                while let Some(mut last_path) = path_stack.pop() {
-                    if let Some(last_node) = last_path.pop() {
-                        visited.remove(&last_node);
-                    }
-                    if !last_path.is_empty() {
-                        path_stack.push(last_path);
-                        break;
-                    }
-                }
-            }
-        }
-
-        end_path.ok_or_else(|| AOCError::ProcessingError("Could not find path.".into()))
-    }
-
-    fn get_next_nodes(&self, (y, x): &(i32, i32), visited: &HashSet<(i32, i32)>) -> Vec<(i32, i32)> {
-        let mut next_nodes: Vec<(i32, i32)> = Vec::new();
-
-        let mut try_add = |y: i32, x: i32| {
-            if !visited.contains(&(y, x)) {
-                next_nodes.push((y, x));
-            }
-        };
-
-        match self.trail.get(*y, *x) {
-            Some(LocationType::SlopeUp) => {
-                try_add(y - 1, *x);
-            },
-            Some(LocationType::SlopeDown) => {
-                try_add(y + 1, *x);
-            },
-            Some(LocationType::SlopeLeft) => {
-                try_add(*y, x - 1);
-            },
-            Some(LocationType::SlopeRight) => {
-                try_add(*y, x + 1);
-            },
-
-            Some(LocationType::Path) => {
-                // Look for next nodes
-                for (yd, xd) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
-                    let ny = y + yd;
-                    let nx = x + xd;
-
-                    match self.trail.get(ny, nx) {
-                        Some(LocationType::Forest) => {},
-                        None => {},
-                        _ => {
-                            try_add(ny, nx);
-                        }
-                    }
-
-                }
-            },
-            _ => {}
-        }
-
-        next_nodes
-    }
-}
-
 pub struct SimplifiedTrailSolver<'a> {
     // The trail to analyze.
     pub trail: &'a HikingTrail,
@@ -280,7 +167,6 @@ impl<'a> SimplifiedTrailSolver<'a> {
 
     pub fn solve(&mut self) -> AOCResult<i32> {
         self.simplify()?;
-        self.verify()?;
         let mut visited: HashSet<(i32, i32)> = HashSet::new();
         visited.insert(self.start);
 
@@ -302,7 +188,11 @@ impl<'a> SimplifiedTrailSolver<'a> {
         }
     }
 
-    fn search_longest(&mut self, pos: (i32, i32), total_cost: i32, visited: &mut HashSet<(i32, i32)>) -> AOCResult<()> {
+    fn search_longest(&mut self,
+        pos: (i32, i32),
+        total_cost: i32,
+        visited: &mut HashSet<(i32, i32)>) -> AOCResult<()>
+    {
 
         if pos == self.end {
             self.on_end(total_cost);
@@ -329,13 +219,6 @@ impl<'a> SimplifiedTrailSolver<'a> {
         Ok(())
     }
 
-    fn verify(&self) -> AOCResult<()> {
-        if !self.edges.contains_key(&self.end) {
-            return Err(AOCError::ProcessingError("Could not find end on a trail path edge.".into()));
-        }
-        Ok(())
-    }
-
     fn simplify(&mut self) -> AOCResult<()> {
         let mut visited: HashSet<(i32, i32)> = HashSet::new();
         visited.insert(self.start);
@@ -348,10 +231,23 @@ impl<'a> SimplifiedTrailSolver<'a> {
         Ok(())
     }
 
-    fn on_found_edge(&mut self, start: (i32, i32), end: (i32, i32), cost: i32) {
+    fn on_found_edge(&mut self,
+        start: (i32, i32),
+        end: (i32, i32),
+        cost: i32,
+        in_path: &HashSet<(i32, i32)>)
+    {
         if cost > 0 {
             self.add_edge(start, end, cost);
-            self.add_edge(end, start, cost);
+
+            let has_slope = in_path
+                .iter()
+                .find(|pos| self.trail.map[pos.0 as usize][pos.1 as usize].is_slope())
+                .is_some();
+
+            if !has_slope {
+                self.add_edge(end, start, cost);
+            }
         }
     }
 
@@ -390,13 +286,13 @@ impl<'a> SimplifiedTrailSolver<'a> {
                     in_path.insert(current);
                 }
                 else {
-                    self.on_found_edge(start, current, cost);
+                    self.on_found_edge(start, current, cost, in_path);
                     return Ok(())
                 }
             }
             // At a junction
             else {
-                self.on_found_edge(start, current, cost);
+                self.on_found_edge(start, current, cost, in_path);
                 for next_node in adj_nodes {
                     if !visited.contains(&next_node) {
                         visited.insert(next_node);
@@ -419,11 +315,8 @@ pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
     let start = trail.get_start()?;
     let end = trail.get_end()?;
 
-    let lp_solver = LongestPathSolverBrute::new(&trail, start.clone(), end.clone());
-    let end_path = lp_solver.search()?;
-
-    // Subtract 1 to account for starting position
-    let result = end_path.len() - 1;
+    let mut st_solver = SimplifiedTrailSolver::new(&trail, start.clone(), end.clone());
+    let result = st_solver.solve()?;
 
     Ok(result.to_string())
 }
@@ -436,8 +329,6 @@ pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
     let start = trail.get_start()?;
     let end = trail.get_end()?;
 
-    // For some reason this solver doesn't work on part 1.
-    // Probably something wrong with analyzing slopes in part 1.
     let mut st_solver = SimplifiedTrailSolver::new(&trail, start.clone(), end.clone());
     let result = st_solver.solve()?;
 
