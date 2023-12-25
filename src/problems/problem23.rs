@@ -436,8 +436,10 @@ pub fn part2(input: impl AsRef<Path>) -> AOCResult<String> {
     let start = trail.get_start()?;
     let end = trail.get_end()?;
 
-    let mut o_solver = SimplifiedTrailSolver::new(&trail, start.clone(), end.clone());
-    let result = o_solver.solve()?;
+    // For some reason this solver doesn't work on part 1.
+    // Probably something wrong with analyzing slopes in part 1.
+    let mut st_solver = SimplifiedTrailSolver::new(&trail, start.clone(), end.clone());
+    let result = st_solver.solve()?;
 
     Ok(result.to_string())
 }
