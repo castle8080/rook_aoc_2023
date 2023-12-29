@@ -22,3 +22,4 @@ pub mod problem21;
 pub mod problem22;
 pub mod problem23;
 pub mod problem24;
+pub mod problem25;
