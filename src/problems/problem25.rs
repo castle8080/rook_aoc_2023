@@ -6,8 +6,8 @@ use std::io::BufReader;
 use std::io::prelude::*;
 use std::path::Path;
 
-use rand::Rng;
 use rand;
+use rand::seq::SliceRandom;
 
 use crate::aocbase::{AOCResult, AOCError};
 
@@ -93,7 +93,11 @@ pub struct KargersCutSolver<'a> {
     // Maps nodes from name to node id of algorithm
     pub node_map: HashMap<&'a String, i32>,
 
+    // super nodes
     pub sgraph_edges: HashMap<i32, KCSNode<'a>>,
+
+    // The order of edges to remove (random)
+    edge_selection_order: Vec<(&'a String, &'a String)>,
 }
 
 impl<'a> KargersCutSolver<'a> {
@@ -102,7 +106,8 @@ impl<'a> KargersCutSolver<'a> {
         Self {
             graph,
             node_map: HashMap::new(),
-            sgraph_edges: HashMap::new()
+            sgraph_edges: HashMap::new(),
+            edge_selection_order: Vec::new(),
         }
     }
 
@@ -141,9 +146,8 @@ impl<'a> KargersCutSolver<'a> {
     }
 
     pub fn solve(&mut self, target_min_cut: i32, max_iterations: i32) -> AOCResult<i32> {
-
         for iteration in 0 .. max_iterations {
-            self.initialize_condensed_graph();
+            self.initialize();
             self.condense()?;
     
             let node = self.sgraph_edges.values().nth(0).unwrap();
@@ -203,9 +207,7 @@ impl<'a> KargersCutSolver<'a> {
         }
 
         // Add original node contained in 2 to 1.
-        for contained_id in &node2.nodes {
-            node1.nodes.insert(contained_id);
-        }
+        node1.nodes.extend(node2.nodes);
 
         // Add edges from 2 to 1.
         for (connected_node_id, original_edges) in node2.connections {
@@ -213,9 +215,7 @@ impl<'a> KargersCutSolver<'a> {
                 Some(prev_n1_edges) => prev_n1_edges,
                 None => Vec::new(),
             };
-            for o_edge in original_edges {
-                node1_original_edges.push(o_edge);
-            }
+            node1_original_edges.extend(original_edges);
             node1.connections.insert(connected_node_id, node1_original_edges);
         }
 
@@ -229,29 +229,21 @@ impl<'a> KargersCutSolver<'a> {
         Ok(())
     }
 
-    fn pick_random_edge(&self) -> Option<(i32, i32)> {
-        let mut rng = rand::thread_rng();
-        let mut chosen = Option::<(f32, i32, i32)>::None;
 
-        // Linear scan to pick 1 edge at random.
-
-        for (id, node) in &self.sgraph_edges {
-            for (o_id, o_edges) in &node.connections {
-                for _ in o_edges {
-                    let rv = rng.gen::<f32>();
-                    let is_chosen = match chosen {
-                        None => true,
-                        Some((prev_rv, _, _)) if rv > prev_rv => true,
-                        _ => false
-                    };
-                    if is_chosen {
-                        chosen = Some((rv, *id, *o_id));
-                    }
-                }
+    fn pick_random_edge(&mut self) -> Option<(i32, i32)> {
+        while let Some((o_node1, o_node2)) = self.edge_selection_order.pop() {
+            let n1 = self.node_map.get(o_node1).unwrap();
+            let n2 = self.node_map.get(o_node2).unwrap();
+            if n1 != n2 {
+                return Some((*n1, *n2));
             }
         }
+        None
+    }
 
-        chosen.map(|t| (t.1, t.2))
+    fn initialize(&mut self) {
+        self.initialize_edge_selection();
+        self.initialize_condensed_graph();
     }
 
     fn initialize_condensed_graph(&mut self) {
@@ -277,13 +269,29 @@ impl<'a> KargersCutSolver<'a> {
             }
         }
     }
+
+    fn initialize_edge_selection(&mut self) {
+        let mut rng = rand::thread_rng();
+        self.edge_selection_order = Vec::new();
+
+        for (node1, n1_connections) in &self.graph.edges {
+            for node2 in n1_connections {
+                if node1 < node2 {
+                    self.edge_selection_order.push((node1, node2));
+                }
+            }
+        }
+
+        self.edge_selection_order.shuffle(&mut rng);
+
+    }
 }
 
 pub fn part1(input: impl AsRef<Path>) -> AOCResult<String> {
     let graph = ComponentGraph::load(input)?;
     let mut solver = KargersCutSolver::new(&graph);
 
-    let iteration_count = solver.solve(3, 1000)?;
+    let iteration_count = solver.solve(3, 2000)?;
     println!("Took {} iterations to find result.", iteration_count);
     //println!("Graph: {}", solver.pretty_print());
 
